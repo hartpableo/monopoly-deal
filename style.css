@@ -1767,3 +1767,22 @@ main {
     max-height: 300px;
   }
 }
+
+.btn-move-wild {
+  background: #f8fafc;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  cursor: pointer;
+  margin-left: auto;
+  box-shadow: 1px 1px 0px var(--ink);
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.btn-move-wild:hover {
+  background: #e2e8f0;
+  transform: translate(-1px, -1px);
+}
+

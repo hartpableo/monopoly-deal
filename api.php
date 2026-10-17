@@ -106,6 +106,7 @@ try {
                     'active_player_id' => $myId,
                     'actions_left' => 3,
                     'turn_number' => 4,
+                    'rent_multiplier' => 1,
                 ],
                 'winner_id' => null,
                 'logs' => [
@@ -227,6 +228,63 @@ try {
                 $delSig = $pdo->prepare("DELETE FROM signaling WHERE game_id = ?");
                 $delSig->execute([$gameId]);
             }
+
+            $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
+            $update->execute([json_encode($state), $gameId]);
+            $pdo->commit();
+
+            echo json_encode([
+                'ok' => true,
+                'state' => GameEngine::sanitizeStateForPlayer($state, $playerId),
+            ]);
+            break;
+
+        case 'end_turn':
+            $gameId = strtoupper(trim($input['game_id'] ?? ''));
+            $playerId = trim($input['player_id'] ?? '');
+            $discardIds = (array)($input['discard_ids'] ?? $input['discard_card_ids'] ?? []);
+
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ? FOR UPDATE");
+            $stmt->execute([$gameId]);
+            $row = $stmt->fetch();
+
+            if (!$row) {
+                $pdo->rollBack();
+                throw new Exception("Game not found.");
+            }
+
+            $state = json_decode($row['state'], true);
+            GameEngine::endTurn($state, $playerId, $discardIds);
+
+            $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
+            $update->execute([json_encode($state), $gameId]);
+            $pdo->commit();
+
+            echo json_encode([
+                'ok' => true,
+                'state' => GameEngine::sanitizeStateForPlayer($state, $playerId),
+            ]);
+            break;
+
+        case 'move_property':
+            $gameId = strtoupper(trim($input['game_id'] ?? ''));
+            $playerId = trim($input['player_id'] ?? '');
+            $cardId = trim($input['card_id'] ?? '');
+            $toColor = trim($input['to_color'] ?? '');
+
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ? FOR UPDATE");
+            $stmt->execute([$gameId]);
+            $row = $stmt->fetch();
+
+            if (!$row) {
+                $pdo->rollBack();
+                throw new Exception("Game not found.");
+            }
+
+            $state = json_decode($row['state'], true);
+            GameEngine::moveProperty($state, $playerId, $cardId, $toColor);
 
             $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
             $update->execute([json_encode($state), $gameId]);

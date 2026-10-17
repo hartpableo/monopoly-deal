@@ -450,7 +450,7 @@ function renderOpponents(myId) {
     `;
 
     container.appendChild(card);
-    renderPropertySets(p.property_sets || {}, card.querySelector(`#opponent-sets-${p.id}`));
+    renderPropertySets(p.property_sets || {}, card.querySelector(`#opponent-sets-${p.id}`), false, false);
   });
 }
 
@@ -481,13 +481,14 @@ function renderMyTable(myPlayer) {
     bankContainer.appendChild(createMiniBankBill(c));
   });
 
+  const isMyTurn = currentGameState?.turn?.active_player_id === myPlayer.id;
+
   // Properties
-  renderPropertySets(myPlayer.property_sets || {}, document.getElementById('my-properties-container'));
+  renderPropertySets(myPlayer.property_sets || {}, document.getElementById('my-properties-container'), true, isMyTurn);
 
   // Hand
   const handContainer = document.getElementById('my-hand-container');
   handContainer.innerHTML = '';
-  const isMyTurn = currentGameState.turn.active_player_id === myPlayer.id;
 
   (myPlayer.hand || []).forEach(card => {
     const cardEl = createCardElement(card, isMyTurn);
@@ -501,7 +502,24 @@ function renderMyTable(myPlayer) {
   });
 }
 
-function renderPropertySets(propertySets, container) {
+function getSetPropertiesCount(cards) {
+  return (cards || []).filter(c => c.type === 'property' || c.type === 'wild_property').length;
+}
+
+function isCompleteSet(cards, color) {
+  if (!SET_RULES[color]) return false;
+  return getSetPropertiesCount(cards) >= SET_RULES[color].size;
+}
+
+function setHasHouse(cards) {
+  return (cards || []).some(c => c.action === 'house');
+}
+
+function setHasHotel(cards) {
+  return (cards || []).some(c => c.action === 'hotel');
+}
+
+function renderPropertySets(propertySets, container, isOwner = false, isMyTurn = false) {
   container.innerHTML = '';
   const entries = Object.entries(propertySets);
 
@@ -518,15 +536,22 @@ function renderPropertySets(propertySets, container) {
     const colorHex = COLOR_HEX[color] || '#333';
     const colorName = COLOR_NAMES[color] || color;
     const targetSize = SET_RULES[color]?.size || 3;
-    const isComplete = cards.length >= targetSize;
+    const propCount = getSetPropertiesCount(cards);
+    const isComplete = isCompleteSet(cards, color);
+    const hasHouse = setHasHouse(cards);
+    const hasHotel = setHasHotel(cards);
 
     if (isComplete) {
       group.classList.add('is-complete');
     }
 
+    let buildingsHtml = '';
+    if (hasHouse) buildingsHtml += ' 🏠';
+    if (hasHotel) buildingsHtml += ' 🏨';
+
     const badge = isComplete
-      ? `<span class="badge-full-set">FULL SET 🏆</span>`
-      : `<span class="set-counter-text">(${cards.length}/${targetSize})</span>`;
+      ? `<span class="badge-full-set">FULL SET 🏆${buildingsHtml}</span>`
+      : `<span class="set-counter-text">(${propCount}/${targetSize})</span>`;
 
     const header = document.createElement('div');
     header.className = 'group-header';
@@ -540,7 +565,7 @@ function renderPropertySets(propertySets, container) {
     list.style.gap = '6px';
 
     cards.forEach(c => {
-      list.appendChild(createMiniPropertyCard(c, color));
+      list.appendChild(createMiniPropertyCard(c, color, isOwner, isMyTurn));
     });
 
     group.appendChild(list);
@@ -934,22 +959,69 @@ function createCardElement(card, interactive = false, isPreview = false) {
 }
 
 // --- Tabletop Mini Cards & Banknotes ---
-function createMiniPropertyCard(card, groupColor) {
+function createMiniPropertyCard(card, groupColor, isOwner = false, isMyTurn = false) {
   const el = document.createElement('div');
   el.className = 'mini-property-item';
   const color = groupColor || card.group || (card.colors && card.colors[0]) || 'brown';
   const colorHex = COLOR_HEX[color] || '#333';
   el.style.borderLeftColor = colorHex;
 
+  const isHouse = card.action === 'house';
+  const isHotel = card.action === 'hotel';
   const isWild = card.type === 'wild_property';
-  const icon = getPropertyHeaderIcon(color);
+  const icon = isHouse ? '🏠' : (isHotel ? '🏨' : getPropertyHeaderIcon(color));
+
+  let moveBtnHtml = '';
+  if (isWild && isOwner && isMyTurn) {
+    moveBtnHtml = `<button class="btn-move-wild" title="Move wildcard to another set (Free action)">⇄ Move</button>`;
+  }
 
   el.innerHTML = `
-    <span style="color: ${colorHex}; display: flex; align-items: center;">${icon}</span>
+    <span style="color: ${colorHex}; display: flex; align-items: center; font-size: 0.9rem;">${icon}</span>
     <span class="mini-prop-name">${escapeHtml(card.name)}</span>
+    ${isHouse ? `<span class="mini-wild-tag" style="background:#16a34a;">+ $3M</span>` : ''}
+    ${isHotel ? `<span class="mini-wild-tag" style="background:#dc2626;">+ $4M</span>` : ''}
     ${isWild ? `<span class="mini-wild-tag">WILD</span>` : ''}
     <span class="mini-prop-badge">$${card.value}M</span>
+    ${moveBtnHtml}
   `;
+
+  if (moveBtnHtml) {
+    const moveBtn = el.querySelector('.btn-move-wild');
+    if (moveBtn) {
+      moveBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const availableColors = (card.colors || []).filter(c => c !== color);
+        if (availableColors.length === 0) return alert('No other colors available for this wildcard.');
+
+        let chosen = null;
+        if (availableColors.length === 1) {
+          chosen = availableColors[0];
+          if (!confirm(`Move ${card.name} to ${COLOR_NAMES[chosen] || chosen} set?`)) return;
+        } else {
+          const promptMsg = `Select target color for wildcard:\n` + availableColors.map((c, i) => `${i + 1}. ${COLOR_NAMES[c] || c}`).join('\n');
+          const choice = prompt(promptMsg, '1');
+          if (!choice) return;
+          const idx = parseInt(choice.trim(), 10) - 1;
+          if (isNaN(idx) || !availableColors[idx]) return alert('Invalid choice.');
+          chosen = availableColors[idx];
+        }
+
+        try {
+          const res = await apiRequest('move_property', 'POST', {
+            game_id: currentGameId,
+            player_id: currentPlayerData.id,
+            card_id: card.id,
+            to_color: chosen
+          });
+          currentGameState = res.state;
+          render();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    }
+  }
 
   el.title = `Click to inspect: ${card.name}`;
   el.addEventListener('click', () => openInspectModal(card));
@@ -1059,23 +1131,384 @@ function openCardModal(card) {
 
   // 3. Action / Rent play
   if (card.type === 'action' || card.type === 'rent' || card.type === 'rent_wild') {
-    const actBtn = document.createElement('button');
-    actBtn.className = 'btn-action';
-    actBtn.textContent = `Play as Action (${card.name})`;
+    const actSection = document.createElement('div');
+    actSection.style.display = 'flex';
+    actSection.style.flexDirection = 'column';
+    actSection.style.gap = '8px';
+    actSection.style.marginTop = '6px';
 
-    actBtn.addEventListener('click', () => {
-      let params = {};
-      if (card.action === 'debt_collector') {
-        const opponents = Object.values(currentGameState.players).filter(p => p.id !== currentPlayerData.id);
-        const targetName = prompt(`Select player to collect $5M from:\n` + opponents.map(p => `${p.name} (id: ${p.id})`).join('\n'));
-        const target = opponents.find(p => p.id === targetName || p.name.toLowerCase() === (targetName || '').toLowerCase());
-        if (!target) return alert('Invalid player selected.');
-        params.target_player_id = target.id;
+    const myPlayer = currentGameState.players[currentPlayerData.id] || {};
+    const opponents = Object.values(currentGameState.players || {}).filter(p => p.id !== currentPlayerData.id);
+
+    if (card.action === 'deal_breaker') {
+      const targetSets = [];
+      opponents.forEach(opp => {
+        Object.entries(opp.property_sets || {}).forEach(([color, cards]) => {
+          if (isCompleteSet(cards, color)) {
+            targetSets.push({
+              player: opp,
+              color,
+              cards,
+              name: `${opp.name}: ${COLOR_NAMES[color] || color} Full Set`
+            });
+          }
+        });
+      });
+
+      if (targetSets.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'empty-state-text';
+        hint.textContent = 'No opponent currently has a completed property set to steal.';
+        actSection.appendChild(hint);
+      } else {
+        const label = document.createElement('label');
+        label.textContent = 'Select completed set to steal:';
+        label.style.fontSize = '0.8rem';
+        label.style.fontWeight = 'bold';
+        actSection.appendChild(label);
+
+        const select = document.createElement('select');
+        select.className = 'modal-select';
+        targetSets.forEach((ts, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.textContent = ts.name;
+          select.appendChild(opt);
+        });
+        actSection.appendChild(select);
+
+        const stealBtn = document.createElement('button');
+        stealBtn.className = 'btn-action';
+        stealBtn.textContent = '🚨 Steal Completed Set!';
+        stealBtn.addEventListener('click', () => {
+          const chosen = targetSets[parseInt(select.value, 10)];
+          executePlay(card.id, 'action', {
+            target_player_id: chosen.player.id,
+            color: chosen.color
+          });
+        });
+        actSection.appendChild(stealBtn);
       }
-      executePlay(card.id, 'action', params);
-    });
+    } else if (card.action === 'sly_deal') {
+      const targetProps = [];
+      opponents.forEach(opp => {
+        Object.entries(opp.property_sets || {}).forEach(([color, cards]) => {
+          if (!isCompleteSet(cards, color)) {
+            cards.forEach(c => {
+              if (c.type === 'property' || c.type === 'wild_property') {
+                targetProps.push({
+                  player: opp,
+                  card: c,
+                  color,
+                  name: `${opp.name}: ${c.name} (${COLOR_NAMES[color] || color})`
+                });
+              }
+            });
+          }
+        });
+      });
 
-    actionsContainer.appendChild(actBtn);
+      if (targetProps.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'empty-state-text';
+        hint.textContent = 'No opponent has an available property to steal (cannot steal full sets).';
+        actSection.appendChild(hint);
+      } else {
+        const label = document.createElement('label');
+        label.textContent = 'Select opponent property to steal:';
+        label.style.fontSize = '0.8rem';
+        label.style.fontWeight = 'bold';
+        actSection.appendChild(label);
+
+        const select = document.createElement('select');
+        select.className = 'modal-select';
+        targetProps.forEach((tp, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.textContent = tp.name;
+          select.appendChild(opt);
+        });
+        actSection.appendChild(select);
+
+        const slyBtn = document.createElement('button');
+        slyBtn.className = 'btn-action';
+        slyBtn.textContent = '🕵️ Steal Property!';
+        slyBtn.addEventListener('click', () => {
+          const chosen = targetProps[parseInt(select.value, 10)];
+          executePlay(card.id, 'action', {
+            target_player_id: chosen.player.id,
+            card_id: chosen.card.id
+          });
+        });
+        actSection.appendChild(slyBtn);
+      }
+    } else if (card.action === 'forced_deal') {
+      const myProps = [];
+      Object.entries(myPlayer.property_sets || {}).forEach(([color, cards]) => {
+        if (!isCompleteSet(cards, color)) {
+          cards.forEach(c => {
+            if (c.type === 'property' || c.type === 'wild_property') {
+              myProps.push({ card: c, color, name: `${c.name} (${COLOR_NAMES[color] || color})` });
+            }
+          });
+        }
+      });
+
+      const oppProps = [];
+      opponents.forEach(opp => {
+        Object.entries(opp.property_sets || {}).forEach(([color, cards]) => {
+          if (!isCompleteSet(cards, color)) {
+            cards.forEach(c => {
+              if (c.type === 'property' || c.type === 'wild_property') {
+                oppProps.push({ player: opp, card: c, color, name: `${opp.name}: ${c.name} (${COLOR_NAMES[color] || color})` });
+              }
+            });
+          }
+        });
+      });
+
+      if (myProps.length === 0 || oppProps.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'empty-state-text';
+        hint.textContent = 'Need at least 1 incomplete property on both sides to swap.';
+        actSection.appendChild(hint);
+      } else {
+        const l1 = document.createElement('label');
+        l1.textContent = 'Your property to trade:';
+        l1.style.fontSize = '0.8rem';
+        actSection.appendChild(l1);
+
+        const selMine = document.createElement('select');
+        selMine.className = 'modal-select';
+        myProps.forEach((mp, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = mp.name;
+          selMine.appendChild(opt);
+        });
+        actSection.appendChild(selMine);
+
+        const l2 = document.createElement('label');
+        l2.textContent = 'Opponent property to take:';
+        l2.style.fontSize = '0.8rem';
+        actSection.appendChild(l2);
+
+        const selOpp = document.createElement('select');
+        selOpp.className = 'modal-select';
+        oppProps.forEach((op, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = op.name;
+          selOpp.appendChild(opt);
+        });
+        actSection.appendChild(selOpp);
+
+        const swapBtn = document.createElement('button');
+        swapBtn.className = 'btn-action';
+        swapBtn.textContent = '🔄 Swap Properties!';
+        swapBtn.addEventListener('click', () => {
+          const m = myProps[parseInt(selMine.value, 10)];
+          const o = oppProps[parseInt(selOpp.value, 10)];
+          executePlay(card.id, 'action', {
+            target_player_id: o.player.id,
+            my_card_id: m.card.id,
+            target_card_id: o.card.id
+          });
+        });
+        actSection.appendChild(swapBtn);
+      }
+    } else if (card.action === 'house') {
+      const eligibleSets = Object.entries(myPlayer.property_sets || {}).filter(([color, cards]) => {
+        return !['railroad', 'utility'].includes(color) && isCompleteSet(cards, color) && !setHasHouse(cards);
+      });
+
+      if (eligibleSets.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'empty-state-text';
+        hint.textContent = 'No eligible complete sets (must be a full standard set without a House).';
+        actSection.appendChild(hint);
+      } else {
+        const select = document.createElement('select');
+        select.className = 'modal-select';
+        eligibleSets.forEach(([color]) => {
+          const opt = document.createElement('option');
+          opt.value = color;
+          opt.textContent = `Build on ${COLOR_NAMES[color] || color} Full Set (+ $3M Rent)`;
+          select.appendChild(opt);
+        });
+        actSection.appendChild(select);
+
+        const houseBtn = document.createElement('button');
+        houseBtn.className = 'btn-action';
+        houseBtn.textContent = '🏠 Build House (+ $3M Rent)';
+        houseBtn.addEventListener('click', () => {
+          executePlay(card.id, 'action', { color: select.value });
+        });
+        actSection.appendChild(houseBtn);
+      }
+    } else if (card.action === 'hotel') {
+      const eligibleSets = Object.entries(myPlayer.property_sets || {}).filter(([color, cards]) => {
+        return !['railroad', 'utility'].includes(color) && isCompleteSet(cards, color) && setHasHouse(cards) && !setHasHotel(cards);
+      });
+
+      if (eligibleSets.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'empty-state-text';
+        hint.textContent = 'No eligible complete sets with a House (must have a House first).';
+        actSection.appendChild(hint);
+      } else {
+        const select = document.createElement('select');
+        select.className = 'modal-select';
+        eligibleSets.forEach(([color]) => {
+          const opt = document.createElement('option');
+          opt.value = color;
+          opt.textContent = `Build on ${COLOR_NAMES[color] || color} Set (+ $4M Rent)`;
+          select.appendChild(opt);
+        });
+        actSection.appendChild(select);
+
+        const hotelBtn = document.createElement('button');
+        hotelBtn.className = 'btn-action';
+        hotelBtn.textContent = '🏨 Build Hotel (+ $4M Rent)';
+        hotelBtn.addEventListener('click', () => {
+          executePlay(card.id, 'action', { color: select.value });
+        });
+        actSection.appendChild(hotelBtn);
+      }
+    } else if (card.action === 'debt_collector') {
+      if (opponents.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'empty-state-text';
+        hint.textContent = 'No opponents to target.';
+        actSection.appendChild(hint);
+      } else {
+        const select = document.createElement('select');
+        select.className = 'modal-select';
+        opponents.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `Collect $5M from ${p.name}`;
+          select.appendChild(opt);
+        });
+        actSection.appendChild(select);
+
+        const dcBtn = document.createElement('button');
+        dcBtn.className = 'btn-action';
+        dcBtn.textContent = '💰 Demand $5M Payment';
+        dcBtn.addEventListener('click', () => {
+          executePlay(card.id, 'action', { target_player_id: select.value });
+        });
+        actSection.appendChild(dcBtn);
+      }
+    } else if (card.action === 'double_rent') {
+      const drBtn = document.createElement('button');
+      drBtn.className = 'btn-action';
+      drBtn.textContent = '⚡ Activate Double Rent (Next rent card x2)';
+      drBtn.addEventListener('click', () => {
+        executePlay(card.id, 'action');
+      });
+      actSection.appendChild(drBtn);
+    } else if (card.action === 'pass_go') {
+      const pgBtn = document.createElement('button');
+      pgBtn.className = 'btn-action';
+      pgBtn.textContent = '⏩ Play Pass Go (Draw 2 Cards)';
+      pgBtn.addEventListener('click', () => {
+        executePlay(card.id, 'action');
+      });
+      actSection.appendChild(pgBtn);
+    } else if (card.action === 'birthday') {
+      const bdayBtn = document.createElement('button');
+      bdayBtn.className = 'btn-action';
+      bdayBtn.textContent = '🎂 Celebrate Birthday (Collect $2M from all)';
+      bdayBtn.addEventListener('click', () => {
+        executePlay(card.id, 'action');
+      });
+      actSection.appendChild(bdayBtn);
+    } else if (card.type === 'rent') {
+      const c1 = card.colors[0];
+      const c2 = card.colors[1];
+      const count1 = (myPlayer.property_sets?.[c1] || []).length;
+      const count2 = (myPlayer.property_sets?.[c2] || []).length;
+
+      const select = document.createElement('select');
+      select.className = 'modal-select';
+
+      const opt1 = document.createElement('option');
+      opt1.value = c1;
+      opt1.textContent = `Charge for ${COLOR_NAMES[c1]} (You own ${count1})`;
+      select.appendChild(opt1);
+
+      const opt2 = document.createElement('option');
+      opt2.value = c2;
+      opt2.textContent = `Charge for ${COLOR_NAMES[c2]} (You own ${count2})`;
+      select.appendChild(opt2);
+      actSection.appendChild(select);
+
+      const rentBtn = document.createElement('button');
+      rentBtn.className = 'btn-action';
+      rentBtn.textContent = '💰 Charge Rent to All Opponents';
+      rentBtn.addEventListener('click', () => {
+        executePlay(card.id, 'action', { color: select.value });
+      });
+      actSection.appendChild(rentBtn);
+    } else if (card.type === 'rent_wild') {
+      if (opponents.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'empty-state-text';
+        hint.textContent = 'No opponents to target.';
+        actSection.appendChild(hint);
+      } else {
+        const l1 = document.createElement('label');
+        l1.textContent = 'Target Opponent:';
+        l1.style.fontSize = '0.8rem';
+        actSection.appendChild(l1);
+
+        const selPlayer = document.createElement('select');
+        selPlayer.className = 'modal-select';
+        opponents.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name;
+          selPlayer.appendChild(opt);
+        });
+        actSection.appendChild(selPlayer);
+
+        const l2 = document.createElement('label');
+        l2.textContent = 'Property color to charge for:';
+        l2.style.fontSize = '0.8rem';
+        actSection.appendChild(l2);
+
+        const selColor = document.createElement('select');
+        selColor.className = 'modal-select';
+        Object.keys(SET_RULES).forEach(col => {
+          const count = (myPlayer.property_sets?.[col] || []).length;
+          const opt = document.createElement('option');
+          opt.value = col;
+          opt.textContent = `${COLOR_NAMES[col]} (You own ${count})`;
+          selColor.appendChild(opt);
+        });
+        actSection.appendChild(selColor);
+
+        const wildRentBtn = document.createElement('button');
+        wildRentBtn.className = 'btn-action';
+        wildRentBtn.textContent = '💰 Charge Single Player Rent';
+        wildRentBtn.addEventListener('click', () => {
+          executePlay(card.id, 'action', {
+            target_player_id: selPlayer.value,
+            color: selColor.value
+          });
+        });
+        actSection.appendChild(wildRentBtn);
+      }
+    } else {
+      const genericBtn = document.createElement('button');
+      genericBtn.className = 'btn-action';
+      genericBtn.textContent = `Play ${card.name}`;
+      genericBtn.addEventListener('click', () => executePlay(card.id, 'action'));
+      actSection.appendChild(genericBtn);
+    }
+
+    actionsContainer.appendChild(actSection);
   }
 
   modal.classList.remove('hidden');
