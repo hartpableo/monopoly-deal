@@ -98,7 +98,21 @@
         </div>
 
         <!-- My Table (Bank & Properties) -->
-        <div class="my-board">
+        <div class="my-board" id="my-board">
+          <div class="my-table-header">
+            <div class="player-identity">
+              <span class="my-table-title" id="my-player-name-display">My Table</span>
+              <span class="speaking-indicator hidden" id="my-speaking-indicator" title="Speaking">
+                <span class="mic-icon">🎙️</span>
+                <span class="speaking-wave">
+                  <span class="wave-bar"></span>
+                  <span class="wave-bar"></span>
+                  <span class="wave-bar"></span>
+                </span>
+              </span>
+            </div>
+          </div>
+
           <div style="display: flex; justify-content: space-between; align-items: baseline;">
             <div class="section-title">My Bank (<span id="my-bank-total">$0M</span>)</div>
           </div>

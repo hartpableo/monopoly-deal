@@ -10,9 +10,22 @@ let signalTimer = null;
 let localStream = null;
 let isMicMuted = false;
 let peerConnections = {}; // peerId -> RTCPeerConnection
+let dataChannels = {}; // peerId -> RTCDataChannel
 const rtcConfig = {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
+
+// Speaking Detection & Audio Analysis State
+const speakingPlayers = new Set();
+let audioContext = null;
+let localAudioSource = null;
+let localAudioAnalyser = null;
+const peerAudioAnalysers = {}; // peerId -> { source, analyser }
+const speakingHoldTimers = {}; // playerId -> setTimeout id
+let audioMonitorTimer = null;
+let demoSimulationTimer = null;
+const SPEAKING_THRESHOLD = 12; // Frequency average threshold for voice detection
+const SPEAKING_HOLD_MS = 400; // Debounce hold ms to prevent flickering during pauses
 
 const COLOR_NAMES = {
   brown: 'Brown',
@@ -116,6 +129,7 @@ async function loadDemoGame() {
     currentGameState = res.state;
     render();
     startPolling();
+    startDemoSpeakingSimulation();
   } catch (err) {
     alert('Failed to load demo game: ' + err.message);
   }
@@ -132,6 +146,9 @@ function clearSession() {
   stopVoiceChat();
   clearInterval(pollTimer);
   clearInterval(signalTimer);
+  clearInterval(demoSimulationTimer);
+  speakingPlayers.clear();
+  clearAllSpeakingHoldTimers();
   localStorage.removeItem('md_game_id');
   localStorage.removeItem('md_player_data');
   currentGameId = null;
@@ -254,6 +271,9 @@ async function fetchGameState() {
     const res = await apiRequest(`state&game_id=${currentGameId}&player_id=${currentPlayerData.id}`, 'GET');
     currentGameState = res.state;
     render();
+    if (localStream) {
+      connectToAllPeers();
+    }
   } catch (err) {
     console.warn('Failed to poll state:', err);
   }
@@ -367,9 +387,22 @@ function renderLobbyView() {
   const myPlayer = currentGameState.players[myId];
 
   Object.values(currentGameState.players).forEach(p => {
+    const isSpeaking = speakingPlayers.has(p.id);
     const li = document.createElement('li');
     li.className = 'lobby-player-item';
-    li.innerHTML = `<span><strong>${escapeHtml(p.name)}</strong> ${p.is_host ? '(Host)' : ''}</span>`;
+    li.innerHTML = `
+      <div class="player-identity">
+        <span><strong>${escapeHtml(p.name)}</strong> ${p.is_host ? '(Host)' : ''}</span>
+        <span class="speaking-indicator ${isSpeaking ? '' : 'hidden'}" id="lobby-speaking-${p.id}" title="Speaking">
+          <span class="mic-icon">🎙️</span>
+          <span class="speaking-wave">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </span>
+        </span>
+      </div>
+    `;
     playersList.appendChild(li);
   });
 
@@ -386,14 +419,27 @@ function renderOpponents(myId) {
     if (p.id === myId) return;
 
     const isTurn = currentGameState.turn.active_player_id === p.id;
+    const isSpeaking = speakingPlayers.has(p.id);
     const card = document.createElement('div');
-    card.className = `opponent-card ${isTurn ? 'is-turn' : ''}`;
+    card.id = `opponent-card-${p.id}`;
+    card.className = `opponent-card ${isTurn ? 'is-turn' : ''} ${isSpeaking ? 'is-speaking' : ''}`;
 
     const totalBank = (p.bank || []).reduce((acc, c) => acc + (c.value || 0), 0);
 
     card.innerHTML = `
       <div class="opponent-header">
-        <span>${escapeHtml(p.name)} ${isTurn ? '🎲' : ''}</span>
+        <div class="player-identity">
+          <span class="opponent-name">${escapeHtml(p.name)}</span>
+          <span class="speaking-indicator ${isSpeaking ? '' : 'hidden'}" id="speaking-indicator-${p.id}" title="Speaking">
+            <span class="mic-icon">🎙️</span>
+            <span class="speaking-wave">
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+            </span>
+          </span>
+        </div>
+        ${isTurn ? '<span class="turn-dice">🎲</span>' : ''}
       </div>
       <div class="player-stats">
         <span>Cards: <strong>${p.hand_count ?? 0}</strong></span>
@@ -410,6 +456,21 @@ function renderOpponents(myId) {
 
 function renderMyTable(myPlayer) {
   if (!myPlayer) return;
+
+  const myNameDisplay = document.getElementById('my-player-name-display');
+  if (myNameDisplay) {
+    myNameDisplay.textContent = `${myPlayer.name || 'You'} (You)`;
+  }
+  const myBoard = document.getElementById('my-board');
+  const mySpeakingIndicator = document.getElementById('my-speaking-indicator');
+  const isSpeaking = speakingPlayers.has(myPlayer.id);
+
+  if (myBoard) {
+    myBoard.classList.toggle('is-speaking', isSpeaking);
+  }
+  if (mySpeakingIndicator) {
+    mySpeakingIndicator.classList.toggle('hidden', !isSpeaking);
+  }
 
   // Bank
   const totalBank = (myPlayer.bank || []).reduce((acc, c) => acc + (c.value || 0), 0);
@@ -1030,17 +1091,267 @@ async function executePlay(cardId, targetType, params = {}) {
 }
 
 /* ========================================================
-   WEBRTC VOICE CHAT (MIC FEATURE)
+   WEBRTC VOICE CHAT & SPEAKING DETECTION (MIC FEATURE)
 ======================================================== */
+function getAudioContext() {
+  if (!audioContext) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      audioContext = new AudioContextClass();
+    }
+  }
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
+  }
+  return audioContext;
+}
+
+function initLocalAudioAnalyser() {
+  if (!localStream) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    if (localAudioSource) {
+      try { localAudioSource.disconnect(); } catch (e) {}
+    }
+
+    localAudioSource = ctx.createMediaStreamSource(localStream);
+    localAudioAnalyser = ctx.createAnalyser();
+    localAudioAnalyser.fftSize = 256;
+    localAudioAnalyser.smoothingTimeConstant = 0.3;
+    localAudioSource.connect(localAudioAnalyser);
+
+    startAudioMonitorLoop();
+  } catch (err) {
+    console.warn('Failed to initialize local audio analyser:', err);
+  }
+}
+
+function attachPeerAudioStream(peerId, stream) {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx || !stream) return;
+
+    cleanupPeerAudio(peerId);
+
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.3;
+    source.connect(analyser);
+
+    peerAudioAnalysers[peerId] = { source, analyser };
+    startAudioMonitorLoop();
+  } catch (err) {
+    console.warn('Failed to attach remote stream analyser for peer', peerId, err);
+  }
+}
+
+function cleanupPeerAudio(peerId) {
+  if (peerAudioAnalysers[peerId]) {
+    try {
+      peerAudioAnalysers[peerId].source.disconnect();
+    } catch (e) {}
+    delete peerAudioAnalysers[peerId];
+  }
+}
+
+function startAudioMonitorLoop() {
+  if (audioMonitorTimer) return;
+
+  audioMonitorTimer = setInterval(() => {
+    const myId = currentPlayerData?.id;
+
+    // 1. Check local player microphone volume
+    if (myId && localStream && localAudioAnalyser && !isMicMuted) {
+      const vol = getAnalyserVolume(localAudioAnalyser);
+      processVolumeSample(myId, vol, true);
+    } else if (myId && isMicMuted) {
+      if (speakingPlayers.has(myId)) {
+        setPlayerSpeaking(myId, false);
+        broadcastSpeakingStatus(false);
+      }
+    }
+
+    // 2. Check remote peers audio volume
+    for (const [peerId, obj] of Object.entries(peerAudioAnalysers)) {
+      if (obj?.analyser) {
+        const vol = getAnalyserVolume(obj.analyser);
+        processVolumeSample(peerId, vol, false);
+      }
+    }
+
+    // Stop monitor timer if no active streams
+    const hasRemote = Object.keys(peerAudioAnalysers).length > 0;
+    const hasLocal = !!(localStream && localAudioAnalyser);
+    if (!hasRemote && !hasLocal) {
+      clearInterval(audioMonitorTimer);
+      audioMonitorTimer = null;
+    }
+  }, 80);
+}
+
+function getAnalyserVolume(analyser) {
+  if (!analyser) return 0;
+  const buffer = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(buffer);
+  let sum = 0;
+  for (let i = 0; i < buffer.length; i++) {
+    sum += buffer[i];
+  }
+  return sum / buffer.length;
+}
+
+function processVolumeSample(playerId, volume, isLocal) {
+  const isAboveThreshold = volume >= SPEAKING_THRESHOLD;
+
+  if (isAboveThreshold) {
+    if (speakingHoldTimers[playerId]) {
+      clearTimeout(speakingHoldTimers[playerId]);
+      delete speakingHoldTimers[playerId];
+    }
+    if (!speakingPlayers.has(playerId)) {
+      setPlayerSpeaking(playerId, true);
+      if (isLocal) {
+        broadcastSpeakingStatus(true);
+      }
+    }
+  } else if (speakingPlayers.has(playerId) && !speakingHoldTimers[playerId]) {
+    speakingHoldTimers[playerId] = setTimeout(() => {
+      setPlayerSpeaking(playerId, false);
+      delete speakingHoldTimers[playerId];
+      if (isLocal) {
+        broadcastSpeakingStatus(false);
+      }
+    }, SPEAKING_HOLD_MS);
+  }
+}
+
+function setPlayerSpeaking(playerId, isSpeaking) {
+  const wasSpeaking = speakingPlayers.has(playerId);
+  if (wasSpeaking === isSpeaking) return;
+
+  if (isSpeaking) {
+    speakingPlayers.add(playerId);
+  } else {
+    speakingPlayers.delete(playerId);
+  }
+
+  const myId = currentPlayerData?.id;
+  if (playerId === myId) {
+    const myBoard = document.getElementById('my-board');
+    const myInd = document.getElementById('my-speaking-indicator');
+    if (myBoard) myBoard.classList.toggle('is-speaking', isSpeaking);
+    if (myInd) myInd.classList.toggle('hidden', !isSpeaking);
+
+    const btnMic = document.getElementById('btn-toggle-mic');
+    if (btnMic && !isMicMuted && localStream) {
+      btnMic.classList.toggle('is-talking', isSpeaking);
+    }
+  } else {
+    const card = document.getElementById(`opponent-card-${playerId}`);
+    const ind = document.getElementById(`speaking-indicator-${playerId}`);
+    if (card) card.classList.toggle('is-speaking', isSpeaking);
+    if (ind) ind.classList.toggle('hidden', !isSpeaking);
+  }
+
+  const lobbyInd = document.getElementById(`lobby-speaking-${playerId}`);
+  if (lobbyInd) {
+    lobbyInd.classList.toggle('hidden', !isSpeaking);
+  }
+}
+
+function clearAllSpeakingHoldTimers() {
+  for (const pid of Object.keys(speakingHoldTimers)) {
+    clearTimeout(speakingHoldTimers[pid]);
+    delete speakingHoldTimers[pid];
+  }
+}
+
+function setupDataChannel(peerId, channel) {
+  dataChannels[peerId] = channel;
+
+  channel.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'speaking') {
+        if (data.isSpeaking) {
+          if (speakingHoldTimers[peerId]) {
+            clearTimeout(speakingHoldTimers[peerId]);
+            delete speakingHoldTimers[peerId];
+          }
+          setPlayerSpeaking(peerId, true);
+        } else if (speakingPlayers.has(peerId) && !speakingHoldTimers[peerId]) {
+          speakingHoldTimers[peerId] = setTimeout(() => {
+            setPlayerSpeaking(peerId, false);
+            delete speakingHoldTimers[peerId];
+          }, SPEAKING_HOLD_MS);
+        }
+      }
+    } catch (e) {}
+  };
+
+  channel.onclose = () => {
+    delete dataChannels[peerId];
+  };
+}
+
+function broadcastSpeakingStatus(isSpeaking) {
+  const msg = JSON.stringify({ type: 'speaking', isSpeaking });
+  for (const peerId in dataChannels) {
+    const dc = dataChannels[peerId];
+    if (dc && dc.readyState === 'open') {
+      try {
+        dc.send(msg);
+      } catch (err) {}
+    }
+  }
+}
+
+function startDemoSpeakingSimulation() {
+  clearInterval(demoSimulationTimer);
+  if (currentGameId !== 'DEMO01') return;
+
+  let toggle = false;
+  demoSimulationTimer = setInterval(() => {
+    if (currentGameId !== 'DEMO01' || !currentGameState) {
+      clearInterval(demoSimulationTimer);
+      return;
+    }
+    const demoPeerId = 'p_demo_sarah';
+    toggle = !toggle;
+    setPlayerSpeaking(demoPeerId, toggle);
+  }, 4000);
+}
+
 async function toggleMic() {
   const btn = document.getElementById('btn-toggle-mic');
 
   if (!localStream) {
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      isMicMuted = false;
       btn.textContent = '🎤 Mic: ON';
       btn.className = 'btn-mic active';
-      connectToAllPeers();
+
+      initLocalAudioAnalyser();
+
+      // Attach local stream to all existing connections
+      for (const [peerId, pc] of Object.entries(peerConnections)) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        if (currentPlayerData?.id < peerId) {
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await sendSignal(peerId, { type: 'offer', sdp: offer });
+          } catch (e) {
+            console.warn('Renegotiation offer error:', e);
+          }
+        }
+      }
+
+      await connectToAllPeers();
     } catch (err) {
       alert('Could not access microphone: ' + err.message);
     }
@@ -1055,6 +1366,11 @@ async function toggleMic() {
   if (isMicMuted) {
     btn.textContent = '🔇 Mic: MUTED';
     btn.className = 'btn-mic muted';
+    btn.classList.remove('is-talking');
+    if (currentPlayerData?.id) {
+      setPlayerSpeaking(currentPlayerData.id, false);
+      broadcastSpeakingStatus(false);
+    }
   } else {
     btn.textContent = '🎤 Mic: ON';
     btn.className = 'btn-mic active';
@@ -1066,12 +1382,38 @@ function stopVoiceChat() {
     localStream.getTracks().forEach(t => t.stop());
     localStream = null;
   }
+
+  if (localAudioSource) {
+    try { localAudioSource.disconnect(); } catch (e) {}
+    localAudioSource = null;
+  }
+  localAudioAnalyser = null;
+
+  for (const peerId of Object.keys(peerAudioAnalysers)) {
+    cleanupPeerAudio(peerId);
+  }
+
+  for (const peerId of Object.keys(dataChannels)) {
+    try { dataChannels[peerId].close(); } catch (e) {}
+    delete dataChannels[peerId];
+  }
+
   Object.values(peerConnections).forEach(pc => pc.close());
   peerConnections = {};
+
+  speakingPlayers.clear();
+  clearAllSpeakingHoldTimers();
+
+  const myId = currentPlayerData?.id;
+  if (myId) {
+    setPlayerSpeaking(myId, false);
+  }
+
   const btn = document.getElementById('btn-toggle-mic');
   if (btn) {
     btn.textContent = '🎤 Enable Voice';
     btn.className = 'btn-mic btn-secondary';
+    btn.classList.remove('is-talking');
   }
 }
 
@@ -1081,9 +1423,8 @@ async function connectToAllPeers() {
   const myId = currentPlayerData.id;
   for (const peerId of Object.keys(currentGameState.players)) {
     if (peerId !== myId && !peerConnections[peerId]) {
-      // Create connection
+      // Create connection if initiator
       if (myId < peerId) {
-        // Initiator
         await initiatePeerConnection(peerId);
       }
     }
@@ -1092,7 +1433,17 @@ async function connectToAllPeers() {
 
 async function initiatePeerConnection(peerId) {
   const pc = createPeerConnection(peerId);
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  // Create data channel on initiator
+  try {
+    const dc = pc.createDataChannel('voice_chat');
+    setupDataChannel(peerId, dc);
+  } catch (err) {
+    console.warn('Failed to create data channel:', err);
+  }
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
@@ -1111,9 +1462,16 @@ function createPeerConnection(peerId) {
   };
 
   pc.ontrack = (event) => {
+    const stream = event.streams[0];
     const audio = new Audio();
-    audio.srcObject = event.streams[0];
+    audio.srcObject = stream;
     audio.autoplay = true;
+
+    attachPeerAudioStream(peerId, stream);
+  };
+
+  pc.ondatachannel = (event) => {
+    setupDataChannel(peerId, event.channel);
   };
 
   return pc;
@@ -1133,7 +1491,7 @@ async function sendSignal(receiverId, message) {
 }
 
 async function pollSignals() {
-  if (!currentGameId || !currentPlayerData || !localStream) return;
+  if (!currentGameId || !currentPlayerData) return;
 
   try {
     const res = await apiRequest(`signals&game_id=${currentGameId}&player_id=${currentPlayerData.id}`, 'GET');
@@ -1165,7 +1523,11 @@ async function handleIncomingSignal(senderId, msg) {
     }
   } else if (msg.type === 'candidate') {
     if (pc) {
-      await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+      } catch (err) {
+        console.warn('Failed to add ICE candidate:', err);
+      }
     }
   }
 }

@@ -212,6 +212,19 @@ button:disabled {
   background: #ff4757;
   color: #ffffff;
 }
+.btn-mic.is-talking {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.6), 3px 3px 0px var(--ink) !important;
+  animation: pulse-talking-btn 0.6s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-talking-btn {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-2px);
+  }
+}
 
 .btn-action {
   background: #8b5cf6;
@@ -421,6 +434,16 @@ main {
   outline: 3px solid #f59e0b;
 }
 
+.opponent-card.is-speaking {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 3.5px rgba(34, 197, 94, 0.45), 4px 4px 0px var(--ink) !important;
+}
+
+.opponent-card.is-turn.is-speaking {
+  outline: 3px solid #16a34a !important;
+  box-shadow: 0 0 0 3.5px rgba(34, 197, 94, 0.45), 6px 6px 0px var(--ink) !important;
+}
+
 .opponent-header {
   display: flex;
   justify-content: space-between;
@@ -594,6 +617,106 @@ main {
   flex-direction: column;
   gap: 14px;
   box-shadow: 5px 5px 0px var(--ink);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.my-board.is-speaking {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 3.5px rgba(34, 197, 94, 0.45), 5px 5px 0px var(--ink) !important;
+}
+
+.my-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.my-table-title {
+  font-weight: 900;
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.player-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.speaking-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #dcfce7;
+  color: #15803d;
+  border: 1.5px solid #16a34a;
+  border-radius: 9999px;
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 1.5px 1.5px 0px var(--ink);
+  animation: speaking-pulse 1.4s infinite ease-in-out;
+}
+
+.speaking-indicator.hidden {
+  display: none !important;
+}
+
+.speaking-indicator .mic-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.speaking-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 10px;
+}
+
+.speaking-wave .wave-bar {
+  display: inline-block;
+  width: 2px;
+  height: 4px;
+  background-color: #16a34a;
+  border-radius: 1px;
+  animation: sound-wave 0.6s ease-in-out infinite alternate;
+}
+
+.speaking-wave .wave-bar:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.speaking-wave .wave-bar:nth-child(2) {
+  animation-delay: 0.25s;
+}
+.speaking-wave .wave-bar:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes sound-wave {
+  0% {
+    height: 3px;
+  }
+  100% {
+    height: 10px;
+  }
+}
+
+@keyframes speaking-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 1.5px 1.5px 0px var(--ink);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 2px 2px 0px var(--ink), 0 0 6px rgba(34, 197, 94, 0.4);
+  }
 }
 
 .sets-container {
