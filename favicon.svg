@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Neo-Brutalist Badge Background -->
+  <rect x="16" y="16" width="480" height="480" rx="110" fill="#fde047" stroke="#000000" stroke-width="28"/>
+  <!-- Top Hat Brim -->
+  <ellipse cx="256" cy="370" rx="185" ry="50" fill="#0f172a" stroke="#000000" stroke-width="22"/>
+  <!-- Top Hat Crown Body -->
+  <polygon points="146,145 366,145 381,360 131,360" fill="#0f172a" stroke="#000000" stroke-width="22" stroke-linejoin="round"/>
+  <!-- Top Hat Crown Rim -->
+  <ellipse cx="256" cy="145" rx="110" ry="32" fill="#334155" stroke="#000000" stroke-width="20"/>
+  <!-- Red Ribbon Banner -->
+  <polygon points="134,295 378,295 381,358 131,358" fill="#dc2626" stroke="#000000" stroke-width="16" stroke-linejoin="round"/>
+  <!-- Highlight shine -->
+  <line x1="196" y1="175" x2="184" y2="277" stroke="#ffffff" stroke-width="20" stroke-linecap="round"/>
+</svg>

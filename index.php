@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monopoly Deal + Voice</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="shortcut icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800;900&display=swap">
@@ -18,11 +23,11 @@
     </div>
 
     <div class="header-status">
-      <span id="turn-badge" class="badge badge-turn">Waiting...</span>
-      <span id="actions-badge" class="badge badge-actions">3 Actions Left</span>
-      <button id="btn-toggle-mic" class="btn-mic btn-secondary">🎤 Enable Voice</button>
-      <button id="btn-end-turn" class="btn-danger">End Turn</button>
-      <button id="btn-leave-game" class="btn-secondary btn-leave">Leave</button>
+      <span id="turn-badge" class="badge badge-turn hidden">Waiting...</span>
+      <span id="actions-badge" class="badge badge-actions hidden">3 Actions Left</span>
+      <button id="btn-toggle-mic" class="btn-mic btn-secondary hidden">🎤 Enable Voice</button>
+      <button id="btn-end-turn" class="btn-danger hidden">End Turn</button>
+      <button id="btn-leave-game" class="btn-secondary btn-leave hidden">Leave</button>
     </div>
   </header>
 
@@ -37,10 +42,6 @@
 
       <div style="display: flex; gap: 8px; margin-top: 4px;">
         <button id="btn-create-game" class="btn-primary" style="width: 100%;">Create New Game</button>
-      </div>
-
-      <div>
-        <button id="btn-demo-game" class="btn-demo" style="width: 100%;">🎮 Launch Dummy Game (Instant UI/UX Review)</button>
       </div>
 
       <div class="lobby-divider">
@@ -76,7 +77,7 @@
         <!-- Center Deck & Discard Table Area -->
         <div class="center-table-row">
           <div class="table-slot-container">
-            <div class="slot-label">DRAW PILE (<span id="deck-count">0</span>)</div>
+            <div class="slot-label">DRAW (<span id="deck-count">0</span>)</div>
             <div id="deck-pile-slot" class="deck-pile-visual" title="Draw Deck">
               <div class="deal-card-back">
                 <div class="card-back-pattern"></div>
@@ -91,7 +92,7 @@
           <div class="table-center-divider"></div>
 
           <div class="table-slot-container">
-            <div class="slot-label">DISCARD PILE (<span id="discard-top-label">Empty</span>)</div>
+            <div class="slot-label">DISCARD (<span id="discard-top-label">Empty</span>)</div>
             <div id="discard-pile-slot" class="discard-pile-visual" title="Top Discarded Card">
               <div class="empty-slot-card">No Discards</div>
             </div>
@@ -127,15 +128,22 @@
 
         <!-- My Hand -->
         <div class="hand-section">
-          <div class="section-title">My Hand (Click a card to play on your turn)</div>
+          <div class="section-title hand-title-row">
+            <span>My Hand</span>
+            <span class="hand-subtitle-desktop">(Click a card to play on your turn)</span>
+            <span class="hand-subtitle-mobile">(Swipe • Tap to play)</span>
+          </div>
           <div id="my-hand-container" class="hand-cards"></div>
         </div>
 
       </div>
 
       <!-- Live Event Logs Sidebar -->
-      <aside class="sidebar">
-        <div class="sidebar-header">Game Activity Log</div>
+      <aside class="sidebar" id="sidebar-logs">
+        <div class="sidebar-header" id="sidebar-logs-header">
+          <span>Game Activity Log</span>
+          <span class="sidebar-chevron">▼</span>
+        </div>
         <div id="logs-container" class="logs-list"></div>
       </aside>
     </div>

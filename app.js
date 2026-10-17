@@ -23,7 +23,6 @@ let localAudioAnalyser = null;
 const peerAudioAnalysers = {}; // peerId -> { source, analyser }
 const speakingHoldTimers = {}; // playerId -> setTimeout id
 let audioMonitorTimer = null;
-let demoSimulationTimer = null;
 const SPEAKING_THRESHOLD = 12; // Frequency average threshold for voice detection
 const SPEAKING_HOLD_MS = 400; // Debounce hold ms to prevent flickering during pauses
 
@@ -70,12 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupLobbyEvents();
   setupGameEvents();
 
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.has('demo')) {
-    loadDemoGame();
-    return;
-  }
-
   if (currentGameId && currentPlayerData) {
     fetchGameState();
     startPolling();
@@ -88,10 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
    LOBBY & NAVIGATION
 ======================================================== */
 function setupLobbyEvents() {
-  const demoBtn = document.getElementById('btn-demo-game');
-  if (demoBtn) {
-    demoBtn.addEventListener('click', loadDemoGame);
-  }
   document.getElementById('btn-create-game').addEventListener('click', async () => {
     const name = document.getElementById('input-player-name').value.trim() || 'Host';
     try {
@@ -122,19 +111,6 @@ function setupLobbyEvents() {
   });
 }
 
-async function loadDemoGame() {
-  try {
-    const res = await apiRequest('demo', 'GET');
-    saveSession(res.game_id, res.player_id, 'You');
-    currentGameState = res.state;
-    render();
-    startPolling();
-    startDemoSpeakingSimulation();
-  } catch (err) {
-    alert('Failed to load demo game: ' + err.message);
-  }
-}
-
 function saveSession(gameId, playerId, name) {
   currentGameId = gameId;
   currentPlayerData = { id: playerId, name };
@@ -146,7 +122,6 @@ function clearSession() {
   stopVoiceChat();
   clearInterval(pollTimer);
   clearInterval(signalTimer);
-  clearInterval(demoSimulationTimer);
   speakingPlayers.clear();
   clearAllSpeakingHoldTimers();
   localStorage.removeItem('md_game_id');
@@ -161,6 +136,11 @@ function showLobby() {
   document.getElementById('lobby-view').classList.remove('hidden');
   document.getElementById('game-view').classList.add('hidden');
   document.getElementById('room-badge').classList.add('hidden');
+  document.getElementById('turn-badge')?.classList.add('hidden');
+  document.getElementById('actions-badge')?.classList.add('hidden');
+  document.getElementById('btn-toggle-mic')?.classList.add('hidden');
+  document.getElementById('btn-end-turn')?.classList.add('hidden');
+  document.getElementById('btn-leave-game')?.classList.add('hidden');
 }
 
 /* ========================================================
@@ -254,6 +234,14 @@ function setupGameEvents() {
       closeInspectModal();
     }
   });
+
+  // Collapsible logs on mobile/compact view
+  const logsHeader = document.getElementById('sidebar-logs-header');
+  if (logsHeader) {
+    logsHeader.addEventListener('click', () => {
+      document.getElementById('sidebar-logs')?.classList.toggle('is-collapsed');
+    });
+  }
 }
 
 function startPolling() {
@@ -315,6 +303,11 @@ function render() {
 
   document.getElementById('lobby-view').classList.add('hidden');
   document.getElementById('game-view').classList.remove('hidden');
+  document.getElementById('turn-badge')?.classList.remove('hidden');
+  document.getElementById('actions-badge')?.classList.remove('hidden');
+  document.getElementById('btn-toggle-mic')?.classList.remove('hidden');
+  document.getElementById('btn-end-turn')?.classList.remove('hidden');
+  document.getElementById('btn-leave-game')?.classList.remove('hidden');
 
   const myPlayer = currentGameState.players[myId];
   const isMyTurn = currentGameState.turn.active_player_id === myId;
@@ -379,6 +372,11 @@ function render() {
 function renderLobbyView() {
   document.getElementById('lobby-view').classList.remove('hidden');
   document.getElementById('game-view').classList.add('hidden');
+  document.getElementById('turn-badge')?.classList.add('hidden');
+  document.getElementById('actions-badge')?.classList.add('hidden');
+  document.getElementById('btn-toggle-mic')?.classList.add('hidden');
+  document.getElementById('btn-end-turn')?.classList.add('hidden');
+  document.getElementById('btn-leave-game')?.classList.remove('hidden');
 
   const playersList = document.getElementById('lobby-players');
   playersList.innerHTML = '';
@@ -1752,22 +1750,6 @@ function broadcastSpeakingStatus(isSpeaking) {
       } catch (err) {}
     }
   }
-}
-
-function startDemoSpeakingSimulation() {
-  clearInterval(demoSimulationTimer);
-  if (currentGameId !== 'DEMO01') return;
-
-  let toggle = false;
-  demoSimulationTimer = setInterval(() => {
-    if (currentGameId !== 'DEMO01' || !currentGameState) {
-      clearInterval(demoSimulationTimer);
-      return;
-    }
-    const demoPeerId = 'p_demo_sarah';
-    toggle = !toggle;
-    setPlayerSpeaking(demoPeerId, toggle);
-  }, 4000);
 }
 
 async function toggleMic() {

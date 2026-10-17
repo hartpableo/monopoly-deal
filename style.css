@@ -181,14 +181,6 @@ button:disabled {
   background: #ee3849;
 }
 
-.btn-demo {
-  background: #00d26a;
-  color: var(--ink);
-}
-.btn-demo:hover:not(:disabled) {
-  background: #10b981;
-}
-
 .btn-start {
   background: #facc15;
   color: var(--ink);
@@ -383,15 +375,20 @@ main {
 ======================================================== */
 .game-grid {
   display: grid;
-  grid-template-columns: 1fr 310px;
+  grid-template-columns: minmax(0, 1fr) 310px;
   gap: 20px;
   flex: 1;
+  min-width: 0;
+  width: 100%;
 }
 
 .table-area {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .section-title {
@@ -1758,16 +1755,6 @@ main {
   display: none !important;
 }
 
-@media (max-width: 960px) {
-  .game-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    max-height: 300px;
-  }
-}
-
 .btn-move-wild {
   background: #f8fafc;
   border: 1.5px solid var(--ink);
@@ -1784,5 +1771,919 @@ main {
 .btn-move-wild:hover {
   background: #e2e8f0;
   transform: translate(-1px, -1px);
+}
+
+/* ========================================================
+   GLOBAL MOBILE RESPONSIVENESS & TOUCH OPTIMIZATIONS
+======================================================== */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  -webkit-text-size-adjust: 100%;
+}
+
+.hand-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hand-subtitle-desktop {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.hand-subtitle-mobile {
+  display: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.sidebar-chevron {
+  display: none;
+}
+
+/* Touch feedback: only apply hover transforms on pointer devices that support hover */
+@media (hover: hover) {
+  .deal-card.interactive:hover {
+    transform: translate(-3px, -5px) scale(1.02);
+    box-shadow: 7px 7px 0px var(--ink);
+    cursor: pointer;
+    z-index: 15;
+  }
+  .deal-card.is-turn-playable:hover {
+    outline: 4px solid #059669;
+    box-shadow: 7px 7px 0px var(--ink);
+  }
+  .mini-property-item:hover {
+    transform: translate(-1.5px, -1.5px);
+    box-shadow: 4px 4px 0px var(--ink);
+  }
+  .mini-bank-bill:hover {
+    transform: translate(-1.5px, -1.5px);
+    box-shadow: 4px 4px 0px var(--ink);
+  }
+  button:hover:not(:disabled) {
+    transform: translate(-1.5px, -1.5px);
+    box-shadow: 5px 5px 0px var(--ink);
+  }
+}
+
+/* Touch active tactile compression */
+.deal-card.interactive:active {
+  transform: scale(0.97) !important;
+  box-shadow: 2px 2px 0px var(--ink) !important;
+}
+
+.mini-property-item:active,
+.mini-bank-bill:active {
+  transform: scale(0.97);
+  box-shadow: 1.5px 1.5px 0px var(--ink);
+}
+
+/* ========================================================
+   TABLET & MOBILE (<= 960px)
+======================================================== */
+@media (max-width: 960px) {
+  .game-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .table-area {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .sidebar {
+    max-height: none;
+  }
+
+  .sidebar-header {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+
+  .sidebar-chevron {
+    display: inline-block;
+    font-size: 0.72rem;
+    transition: transform 0.2s ease;
+  }
+
+  .sidebar.is-collapsed .sidebar-chevron {
+    transform: rotate(-90deg);
+  }
+
+  .sidebar.is-collapsed .logs-list {
+    display: none;
+  }
+
+  .logs-list {
+    max-height: 180px;
+    padding: 10px 14px;
+    gap: 6px;
+  }
+
+  .log-item {
+    font-size: 0.75rem;
+    line-height: 1.3;
+  }
+}
+
+/* ========================================================
+   MOBILE VIEWPORT (<= 768px)
+======================================================== */
+@media (max-width: 768px) {
+  /* Header Mobile Bar */
+  header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 12px;
+    gap: 8px;
+    box-shadow: 0 3px 0px var(--ink);
+    border-bottom-width: 3px;
+  }
+
+  .header-left {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo {
+    font-size: 0.95rem;
+    padding: 3px 8px;
+    box-shadow: 2px 2px 0px var(--ink);
+    border-width: 2px;
+    white-space: nowrap;
+  }
+
+  #room-badge {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    box-shadow: 2px 2px 0px var(--ink);
+    white-space: nowrap;
+  }
+
+  .header-status {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .header-status::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-status .badge {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 2px 2px 0px var(--ink);
+    border-width: 1.5px;
+  }
+
+  .header-status button {
+    font-size: 0.72rem;
+    padding: 4px 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 2px 2px 0px var(--ink);
+    border-width: 2px;
+  }
+
+  .btn-leave {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    margin-left: auto;
+  }
+
+  /* Main Container */
+  main {
+    padding: 10px 12px 20px 12px;
+    gap: 12px;
+  }
+
+  /* Lobby Card */
+  .lobby-card {
+    margin: 12px auto;
+    padding: 18px 14px;
+    border-width: 3px;
+    box-shadow: 4px 4px 0px var(--ink);
+    width: 100%;
+  }
+
+  .lobby-card h2 {
+    font-size: 1.35rem;
+    padding-bottom: 8px;
+    border-bottom-width: 2.5px;
+  }
+
+  .form-group input {
+    font-size: 16px; /* prevent iOS auto-zoom */
+    padding: 9px 12px;
+    border-width: 2px;
+    box-shadow: 2.5px 2.5px 0px var(--ink);
+  }
+
+  /* Opponents Area */
+  .opponents-row {
+    gap: 10px;
+    padding: 2px 2px 8px 2px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .opponent-card {
+    min-width: 235px;
+    max-width: 265px;
+    flex: 0 0 245px;
+    scroll-snap-align: start;
+    padding: 10px;
+    border-width: 2.5px;
+    box-shadow: 3px 3px 0px var(--ink);
+  }
+
+  .opponent-header {
+    font-size: 0.88rem;
+    margin-bottom: 6px;
+    padding-bottom: 3px;
+  }
+
+  .player-stats {
+    font-size: 0.72rem;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .player-stats span {
+    padding: 1.5px 5px;
+  }
+
+  .opponent-card .sets-container {
+    gap: 6px;
+    min-height: 50px;
+  }
+
+  .opponent-card .property-group {
+    min-width: 105px;
+    max-width: 100%;
+    padding: 5px;
+    box-shadow: 2px 2px 0px var(--ink);
+    border-width: 1.5px;
+  }
+
+  .opponent-card .group-header {
+    font-size: 0.64rem;
+    padding: 2px 5px;
+    margin-bottom: 4px;
+    border-width: 1.5px;
+  }
+
+  .opponent-card .mini-property-item {
+    padding: 3px 5px;
+    font-size: 0.62rem;
+    border-left-width: 5px;
+    box-shadow: 1.5px 1.5px 0px var(--ink);
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .opponent-card .mini-prop-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+
+  /* Center Deck & Discard Table */
+  .center-table-row {
+    padding: 10px 10px;
+    gap: 14px;
+    border-width: 2.5px;
+    border-radius: 10px;
+    box-shadow: 4px 4px 0px var(--ink);
+    max-width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .table-slot-container {
+    min-width: 0;
+    max-width: 120px;
+    flex: 1;
+    align-items: center;
+  }
+
+  .deck-pile-visual,
+  .discard-pile-visual {
+    width: 78px;
+    height: 112px;
+    border-radius: 6px;
+  }
+
+  .deck-pile-visual {
+    box-shadow: 2px 2px 0 var(--ink), 4px 4px 0 var(--ink), 6px 6px 0 var(--ink);
+  }
+
+  .table-center-divider {
+    height: 76px;
+    width: 2px;
+  }
+
+  .slot-label {
+    font-size: 0.60rem;
+    padding: 2px 6px;
+    max-width: 115px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  .card-back-banner {
+    padding: 2px 5px;
+    transform: rotate(-4deg);
+    border-width: 1.5px;
+    box-shadow: 2px 2px 0px var(--ink);
+  }
+
+  .card-back-monopoly {
+    font-size: 0.52rem;
+  }
+
+  .card-back-deal {
+    font-size: 0.68rem;
+  }
+
+  #discard-pile-slot .deal-card {
+    transform: scale(0.52) rotate(-2deg) !important;
+    transform-origin: center center !important;
+  }
+
+  .empty-slot-card {
+    font-size: 0.60rem;
+    border-width: 2px;
+  }
+
+  /* My Table (Bank & Properties) */
+  .my-board {
+    padding: 12px 10px;
+    gap: 10px;
+    border-width: 2.5px;
+    box-shadow: 4px 4px 0px var(--ink);
+    box-sizing: border-box;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .my-table-title {
+    font-size: 0.95rem;
+  }
+
+  .bank-container {
+    gap: 6px;
+    min-height: 38px;
+  }
+
+  .mini-bank-bill {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    border-width: 1.5px;
+    box-shadow: 2px 2px 0px var(--ink);
+  }
+
+  .mini-bank-val {
+    font-size: 0.75rem;
+  }
+
+  #my-properties-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    min-height: 50px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  #my-properties-container .property-group {
+    min-width: 0 !important;
+    max-width: 100%;
+    width: 100%;
+    padding: 6px;
+    border-width: 2px;
+    box-shadow: 2.5px 2.5px 0px var(--ink);
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .group-header {
+    padding: 3px 6px;
+    font-size: 0.66rem;
+    margin-bottom: 6px;
+    border-width: 1.5px;
+  }
+
+  .badge-full-set {
+    font-size: 0.56rem;
+    padding: 1px 4px;
+  }
+
+  .mini-property-item {
+    padding: 4px 5px;
+    font-size: 0.63rem;
+    border-width: 1.5px;
+    border-left-width: 5px;
+    box-shadow: 2px 2px 0px var(--ink);
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .mini-prop-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+    font-size: 0.64rem;
+  }
+
+  .mini-prop-badge {
+    font-size: 0.56rem;
+    padding: 1px 3px;
+    flex-shrink: 0;
+  }
+
+  .btn-move-wild {
+    font-size: 0.58rem;
+    padding: 1.5px 4px;
+  }
+
+  /* My Hand (Horizontal Swiping Carousel) */
+  .hand-section {
+    padding: 12px 10px;
+    border-width: 2.5px;
+    box-shadow: 4px 4px 0px var(--ink);
+  }
+
+  .hand-subtitle-desktop {
+    display: none;
+  }
+
+  .hand-subtitle-mobile {
+    display: inline;
+  }
+
+  .hand-cards {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 10px;
+    padding: 4px 2px 10px 2px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .hand-cards .deal-card {
+    width: 118px;
+    height: 172px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    border-width: 2px;
+    padding: 4px;
+    box-shadow: 3px 3px 0px var(--ink);
+  }
+
+  /* Inner Card Details on Mobile Hand Cards */
+  .hand-cards .card-frame {
+    border-width: 1.5px;
+  }
+
+  .hand-cards .card-val-badge {
+    width: 24px;
+    height: 24px;
+    border-width: 1.5px;
+  }
+
+  .hand-cards .card-val-badge .val-curr { font-size: 0.46rem; }
+  .hand-cards .card-val-badge .val-num { font-size: 0.62rem; }
+  .hand-cards .card-val-badge .val-unit { font-size: 0.42rem; }
+
+  .hand-cards .card-header-bar {
+    padding: 2px 4px 2px 26px;
+    min-height: 28px;
+    border-bottom-width: 1.5px;
+  }
+
+  .hand-cards .card-header-title {
+    font-size: 0.52rem;
+    line-height: 1.1;
+  }
+
+  .hand-cards .rent-main-title {
+    font-size: 0.58rem;
+  }
+
+  .hand-cards .rent-sub-title {
+    font-size: 0.44rem;
+  }
+
+  .hand-cards .card-rent-table {
+    margin: 3px;
+    padding: 3px;
+    border-width: 1px;
+  }
+
+  .hand-cards .rent-table-title {
+    font-size: 0.54rem;
+    padding-bottom: 1px;
+    border-bottom-width: 1px;
+  }
+
+  .hand-cards .rent-row {
+    font-size: 0.52rem;
+    padding: 1px 3px;
+  }
+
+  .hand-cards .card-set-badge {
+    font-size: 0.48rem;
+    padding: 1px 3px;
+    margin-top: 2px;
+    border-width: 1px;
+  }
+
+  .hand-cards .card-house-note {
+    font-size: 0.42rem;
+    padding-top: 1px;
+  }
+
+  .hand-cards .action-type-pill {
+    font-size: 0.46rem;
+    padding: 1px 4px;
+  }
+
+  .hand-cards .action-art-svg {
+    width: 42px;
+    height: 42px;
+  }
+
+  .hand-cards .action-art-img {
+    width: 56px;
+    height: 56px;
+    border-width: 1px;
+  }
+
+  .hand-cards .action-rule-box {
+    min-height: 38px;
+    font-size: 0.50rem;
+    line-height: 1.15;
+    padding: 3px 22px 3px 4px;
+    border-top-width: 1.5px;
+  }
+
+  .hand-cards .wild-split-header {
+    min-height: 28px;
+    padding-left: 26px;
+    border-bottom-width: 1.5px;
+  }
+
+  .hand-cards .wild-split-col {
+    font-size: 0.48rem;
+    padding: 1px 2px;
+  }
+
+  .hand-cards .wild-card-title {
+    font-size: 0.56rem;
+  }
+
+  .hand-cards .wild-swap-icon {
+    font-size: 0.95rem;
+  }
+
+  .hand-cards .wild-rainbow-wheel {
+    width: 46px;
+    height: 46px;
+    border-width: 2px;
+  }
+
+  .hand-cards .wild-wheel-center {
+    width: 18px;
+    height: 18px;
+    font-size: 0.44rem;
+  }
+
+  .hand-cards .banknote-frame {
+    border-width: 2px;
+    padding: 4px 3px;
+  }
+
+  .hand-cards .banknote-top-header {
+    font-size: 0.46rem;
+    margin-top: 6px;
+  }
+
+  .hand-cards .banknote-bottom-banner {
+    font-size: 0.46rem;
+    margin-bottom: 6px;
+  }
+
+  .hand-cards .banknote-center-oval {
+    width: 68px;
+    height: 68px;
+    border-width: 2px;
+  }
+
+  .hand-cards .banknote-tycoon-img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .hand-cards .banknote-amount .bn-curr {
+    font-size: 0.68rem;
+  }
+
+  .hand-cards .banknote-amount .bn-val {
+    font-size: 1.1rem;
+  }
+
+  .hand-cards .banknote-amount .bn-unit {
+    font-size: 0.64rem;
+  }
+
+  .hand-cards .banknote-corner {
+    font-size: 0.52rem;
+  }
+
+  /* Modals Optimization for Mobile */
+  .modal-overlay {
+    padding: 10px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 350px;
+    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px;
+    gap: 10px;
+    border-width: 3px;
+    box-shadow: 5px 5px 0px var(--ink);
+  }
+
+  .modal-header-row {
+    padding-bottom: 8px;
+    border-bottom-width: 2px;
+  }
+
+  .modal-header-row h3 {
+    font-size: 1.05rem;
+  }
+
+  .modal-close-x {
+    width: 28px;
+    height: 28px;
+    font-size: 0.95rem;
+  }
+
+  .modal-card-preview {
+    padding: 4px 0;
+  }
+
+  /* Scaled Card Preview inside Modals on Mobile */
+  .deal-card.card-preview {
+    width: 136px;
+    height: 198px;
+    box-shadow: 5px 5px 0px var(--ink) !important;
+    padding: 5px;
+  }
+
+  .card-preview .card-val-badge {
+    width: 28px;
+    height: 28px;
+    border-width: 2px;
+  }
+
+  .card-preview .card-val-badge .val-curr { font-size: 0.54rem; }
+  .card-preview .card-val-badge .val-num { font-size: 0.76rem; }
+  .card-preview .card-val-badge .val-unit { font-size: 0.50rem; }
+
+  .card-preview .card-header-bar {
+    padding: 3px 6px 3px 32px;
+    min-height: 35px;
+  }
+
+  .card-preview .card-header-title {
+    font-size: 0.62rem;
+    line-height: 1.15;
+  }
+
+  .card-preview .rent-main-title {
+    font-size: 0.70rem;
+  }
+
+  .card-preview .rent-sub-title {
+    font-size: 0.52rem;
+  }
+
+  .card-preview .card-rent-table {
+    margin: 4px 4px 3px 4px;
+    padding: 4px;
+  }
+
+  .card-preview .rent-table-title {
+    font-size: 0.60rem;
+  }
+
+  .card-preview .rent-row {
+    font-size: 0.58rem;
+    padding: 1.5px 4px;
+  }
+
+  .card-preview .card-set-badge {
+    font-size: 0.52rem;
+    padding: 2px 4px;
+  }
+
+  .card-preview .card-house-note {
+    font-size: 0.46rem;
+  }
+
+  .card-preview .action-type-pill {
+    font-size: 0.52rem;
+    padding: 1.5px 6px;
+    margin-bottom: 2px;
+  }
+
+  .card-preview .action-art-svg {
+    width: 54px;
+    height: 54px;
+  }
+
+  .card-preview .action-art-img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .card-preview .action-rule-box {
+    font-size: 0.58rem;
+    padding: 4px 28px 4px 6px;
+    min-height: 42px;
+  }
+
+  .card-preview .wild-split-header {
+    min-height: 35px;
+    padding-left: 32px;
+  }
+
+  .card-preview .wild-split-col {
+    font-size: 0.58rem;
+  }
+
+  .card-preview .wild-card-title {
+    font-size: 0.66rem;
+  }
+
+  .card-preview .wild-rainbow-wheel {
+    width: 58px;
+    height: 58px;
+  }
+
+  .card-preview .wild-wheel-center {
+    width: 24px;
+    height: 24px;
+    font-size: 0.50rem;
+  }
+
+  .card-preview .banknote-frame {
+    border-width: 2px;
+  }
+
+  .card-preview .banknote-center-oval {
+    width: 88px;
+    height: 88px;
+  }
+
+  .card-preview .banknote-amount .bn-val {
+    font-size: 1.35rem;
+  }
+
+  .card-preview .banknote-top-header {
+    font-size: 0.56rem;
+    margin-top: 8px;
+  }
+
+  .card-preview .banknote-bottom-banner {
+    font-size: 0.56rem;
+    margin-bottom: 8px;
+  }
+
+  .card-preview .banknote-tycoon-img {
+    width: 26px;
+    height: 26px;
+  }
+
+  .card-preview .banknote-corner {
+    font-size: 0.62rem;
+  }
+
+  .modal-actions {
+    gap: 8px;
+  }
+
+  .modal-actions button {
+    min-height: 40px;
+    font-size: 0.78rem;
+    padding: 8px 12px;
+  }
+
+  .modal-select {
+    min-height: 38px;
+    font-size: 0.82rem;
+    padding: 8px 10px;
+  }
+}
+
+/* ========================================================
+   VERY SMALL SCREENS (<= 380px)
+======================================================== */
+@media (max-width: 380px) {
+  header {
+    padding: 6px 8px;
+  }
+
+  .logo {
+    font-size: 0.86rem;
+    padding: 2px 6px;
+  }
+
+  #room-badge {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+
+  .header-status .badge,
+  .header-status button {
+    font-size: 0.66rem;
+    padding: 3px 6px;
+  }
+
+  .btn-leave {
+    font-size: 0.66rem;
+    padding: 3px 6px;
+  }
+
+  #my-properties-container {
+    grid-template-columns: 1fr;
+  }
+
+  .center-table-row {
+    padding: 8px 10px;
+    gap: 10px;
+  }
+
+  .deck-pile-visual,
+  .discard-pile-visual {
+    width: 74px;
+    height: 108px;
+  }
+
+  .table-center-divider {
+    height: 70px;
+  }
+
+  .hand-cards .deal-card {
+    width: 112px;
+    height: 164px;
+  }
 }
 
