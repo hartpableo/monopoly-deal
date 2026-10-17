@@ -445,7 +445,7 @@ function renderPropertySets(propertySets, container) {
   const entries = Object.entries(propertySets);
 
   if (entries.length === 0) {
-    container.innerHTML = `<span style="color: #64748b; font-size: 0.8rem;">No properties laid down yet</span>`;
+    container.innerHTML = `<span class="empty-state-text">No properties laid down yet</span>`;
     return;
   }
 
@@ -464,8 +464,8 @@ function renderPropertySets(propertySets, container) {
     }
 
     const badge = isComplete
-      ? `<span style="background: #166534; color: #86efac; padding: 1px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">FULL SET 🏆</span>`
-      : `<span style="opacity: 0.85; font-size: 0.7rem;">(${cards.length}/${targetSize})</span>`;
+      ? `<span class="badge-full-set">FULL SET 🏆</span>`
+      : `<span class="set-counter-text">(${cards.length}/${targetSize})</span>`;
 
     const header = document.createElement('div');
     header.className = 'group-header';
@@ -749,7 +749,7 @@ function createCardElement(card, interactive = false, isPreview = false) {
           <div style="font-size: 0.58rem; color: #64748b; text-align: center;">
             Swap color on your turn
           </div>
-          <div style="margin-top: 4px; padding: 2px 6px; border-radius: 4px; background: #e2e8f0; font-size: 0.55rem; font-weight: 800;">
+          <div style="margin-top: 4px; padding: 2px 6px; border-radius: 4px; background: #e2e8f0; border: 1.5px solid #000; font-size: 0.55rem; font-weight: 800;">
             Active: <span style="color: ${SET_RULES[curCol]?.color || '#000'}">${COLOR_NAMES[curCol] || curCol}</span>
           </div>
         </div>
@@ -764,8 +764,8 @@ function createCardElement(card, interactive = false, isPreview = false) {
   // Handle 10-Color Wild Property
   if (card.type === 'wild_property') {
     el.innerHTML = `
-      <div class="card-val-badge val-tl" style="background:#e2e8f0; color:#475569;">$0M</div>
-      <div class="card-val-badge val-br" style="background:#e2e8f0; color:#475569;">$0M</div>
+      <div class="card-val-badge val-tl" style="background:#e2e8f0; color:#000;">$0M</div>
+      <div class="card-val-badge val-br" style="background:#e2e8f0; color:#000;">$0M</div>
       <div class="card-frame">
         <div class="card-header-bar" style="background: linear-gradient(90deg, #6e3b23, #38bdf8, #db2777, #ea580c, #dc2626, #eab308, #15803d, #00479b); color: #fff;">
           <div class="card-header-title">10-COLOR WILDCARD</div>
@@ -947,6 +947,7 @@ function openCardModal(card) {
 
   // 1. Bank option (Available for Money, Action, and Rent cards)
   const bankBtn = document.createElement('button');
+  bankBtn.className = 'btn-bank';
   bankBtn.textContent = `Deposit into Bank ($${card.value}M)`;
   bankBtn.addEventListener('click', () => executePlay(card.id, 'bank'));
   actionsContainer.appendChild(bankBtn);
@@ -956,10 +957,7 @@ function openCardModal(card) {
     if (card.colors && card.colors.length > 1) {
       // Pick color for wildcard
       const select = document.createElement('select');
-      select.style.padding = '8px';
-      select.style.borderRadius = '6px';
-      select.style.background = '#0f172a';
-      select.style.color = '#fff';
+      select.className = 'modal-select';
 
       card.colors.forEach(col => {
         const opt = document.createElement('option');
@@ -969,7 +967,7 @@ function openCardModal(card) {
       });
 
       const propBtn = document.createElement('button');
-      propBtn.className = 'btn-secondary';
+      propBtn.className = 'btn-property';
       propBtn.textContent = 'Lay down Property';
       propBtn.addEventListener('click', () => {
         executePlay(card.id, 'property', { color: select.value });
@@ -979,7 +977,7 @@ function openCardModal(card) {
       actionsContainer.appendChild(propBtn);
     } else {
       const propBtn = document.createElement('button');
-      propBtn.className = 'btn-secondary';
+      propBtn.className = 'btn-property';
       propBtn.textContent = 'Lay down Property';
       propBtn.addEventListener('click', () => executePlay(card.id, 'property'));
       actionsContainer.appendChild(propBtn);
@@ -989,7 +987,7 @@ function openCardModal(card) {
   // 3. Action / Rent play
   if (card.type === 'action' || card.type === 'rent' || card.type === 'rent_wild') {
     const actBtn = document.createElement('button');
-    actBtn.style.background = '#7c3aed';
+    actBtn.className = 'btn-action';
     actBtn.textContent = `Play as Action (${card.name})`;
 
     actBtn.addEventListener('click', () => {

@@ -9,7 +9,7 @@
 <body>
 
   <header>
-    <div style="display: flex; align-items: center; gap: 12px;">
+    <div class="header-left">
       <div class="logo">🎩 Monopoly Deal</div>
       <div id="room-badge" class="badge badge-room hidden">Room: <span id="room-code-display">------</span></div>
     </div>
@@ -19,7 +19,7 @@
       <span id="actions-badge" class="badge badge-actions">3 Actions Left</span>
       <button id="btn-toggle-mic" class="btn-mic btn-secondary">🎤 Enable Voice</button>
       <button id="btn-end-turn" class="btn-danger">End Turn</button>
-      <button id="btn-leave-game" class="btn-secondary" style="font-size: 0.75rem; padding: 6px 10px;">Leave</button>
+      <button id="btn-leave-game" class="btn-secondary btn-leave">Leave</button>
     </div>
   </header>
 
@@ -32,18 +32,16 @@
         <input type="text" id="input-player-name" placeholder="Enter your name" maxlength="16" value="Player">
       </div>
 
-      <div style="display: flex; gap: 8px; margin-top: 8px;">
-        <button id="btn-create-game" style="flex: 1;">Create New Game</button>
+      <div style="display: flex; gap: 8px; margin-top: 4px;">
+        <button id="btn-create-game" class="btn-primary" style="width: 100%;">Create New Game</button>
       </div>
 
-      <div style="margin-top: 4px;">
-        <button id="btn-demo-game" style="width: 100%; background: #059669;">🎮 Launch Dummy Game (Instant UI/UX Review)</button>
+      <div>
+        <button id="btn-demo-game" class="btn-demo" style="width: 100%;">🎮 Launch Dummy Game (Instant UI/UX Review)</button>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
-        <div style="flex: 1; height: 1px; background: var(--panel-border);"></div>
-        <span style="font-size: 0.8rem; color: var(--text-muted);">OR</span>
-        <div style="flex: 1; height: 1px; background: var(--panel-border);"></div>
+      <div class="lobby-divider">
+        <span>OR</span>
       </div>
 
       <div class="form-group">
@@ -51,14 +49,14 @@
         <input type="text" id="input-room-code" placeholder="e.g. 6-letter code" maxlength="6" style="text-transform: uppercase;">
       </div>
 
-      <button id="btn-join-game" class="btn-secondary">Join Existing Game</button>
+      <button id="btn-join-game" class="btn-secondary" style="width: 100%;">Join Existing Game</button>
 
-      <div style="margin-top: 16px;">
+      <div style="margin-top: 12px;">
         <div class="section-title">Connected Players:</div>
         <ul id="lobby-players" class="lobby-players-list">
-          <li style="color: var(--text-muted); font-size: 0.85rem;">Create or join a room to see players.</li>
+          <li class="lobby-empty-hint">Create or join a room to see players.</li>
         </ul>
-        <button id="btn-start-game" class="hidden" style="width: 100%; margin-top: 12px; background: var(--success);">Start Game (Need 2+ Players)</button>
+        <button id="btn-start-game" class="hidden btn-start" style="width: 100%; margin-top: 12px;">Start Game (Need 2+ Players)</button>
       </div>
     </div>
 
