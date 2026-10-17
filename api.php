@@ -222,6 +222,12 @@ try {
             $state = json_decode($row['state'], true);
             GameEngine::playCard($state, $playerId, $cardId, $targetType, $params);
 
+            // If game finished, purge all voice signaling data immediately
+            if ($state['status'] === 'finished') {
+                $delSig = $pdo->prepare("DELETE FROM signaling WHERE game_id = ?");
+                $delSig->execute([$gameId]);
+            }
+
             $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
             $update->execute([json_encode($state), $gameId]);
             $pdo->commit();
@@ -232,35 +238,39 @@ try {
             ]);
             break;
 
-        case 'end_turn':
+        case 'leave':
             $gameId = strtoupper(trim($input['game_id'] ?? ''));
             $playerId = trim($input['player_id'] ?? '');
-            $discardIds = (array)($input['discard_ids'] ?? []);
 
-            $pdo->beginTransaction();
-            $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ? FOR UPDATE");
+            $stmt = $pdo->prepare("SELECT state FROM games WHERE id = ?");
             $stmt->execute([$gameId]);
             $row = $stmt->fetch();
 
-            if (!$row) {
-                $pdo->rollBack();
-                throw new Exception("Game not found.");
+            if ($row) {
+                $state = json_decode($row['state'], true);
+                // Purge completely from DB if the game is finished, or if host leaves, or no players remain
+                if ($state['status'] === 'finished' || ($state['players'][$playerId]['is_host'] ?? false)) {
+                    $pdo->prepare("DELETE FROM games WHERE id = ?")->execute([$gameId]);
+                    $pdo->prepare("DELETE FROM signaling WHERE game_id = ?")->execute([$gameId]);
+                } else {
+                    unset($state['players'][$playerId]);
+                    $state['turn_order'] = array_values(array_filter($state['turn_order'], fn($id) => $id !== $playerId));
+                    if (empty($state['players'])) {
+                        $pdo->prepare("DELETE FROM games WHERE id = ?")->execute([$gameId]);
+                        $pdo->prepare("DELETE FROM signaling WHERE game_id = ?")->execute([$gameId]);
+                    } else {
+                        $pdo->prepare("UPDATE games SET state = ? WHERE id = ?")->execute([json_encode($state), $gameId]);
+                    }
+                }
             }
-
-            $state = json_decode($row['state'], true);
-            GameEngine::endTurn($state, $playerId, $discardIds);
-
-            $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
-            $update->execute([json_encode($state), $gameId]);
-            $pdo->commit();
-
-            echo json_encode([
-                'ok' => true,
-                'state' => GameEngine::sanitizeStateForPlayer($state, $playerId),
-            ]);
+            echo json_encode(['ok' => true]);
             break;
 
         case 'state':
+            // Purge finished games older than 30s so no finished games or recordings persist in DB
+            $pdo->query("DELETE FROM games WHERE JSON_UNQUOTE(JSON_EXTRACT(state, '$.status')) = 'finished' AND updated_at < NOW() - INTERVAL 30 SECOND");
+            $pdo->query("DELETE FROM signaling WHERE created_at < NOW() - INTERVAL 5 MINUTE");
+
             $gameId = strtoupper(trim($_GET['game_id'] ?? ''));
             $playerId = trim($_GET['player_id'] ?? '');
 

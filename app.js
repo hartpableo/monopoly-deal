@@ -178,8 +178,18 @@ function setupGameEvents() {
     }
   });
 
-  document.getElementById('btn-leave-game').addEventListener('click', () => {
+  document.getElementById('btn-leave-game').addEventListener('click', async () => {
     if (confirm('Leave current game?')) {
+      if (currentGameId && currentPlayerData) {
+        try {
+          await apiRequest('leave', 'POST', {
+            game_id: currentGameId,
+            player_id: currentPlayerData.id
+          });
+        } catch (e) {
+          // ignore error if already purged
+        }
+      }
       clearSession();
     }
   });
