@@ -10,16 +10,16 @@
   --danger: #ef4444;
   --warning: #f59e0b;
 
-  --color-brown: #8b4513;
-  --color-dark_blue: #00008b;
+  --color-brown: #6e3b23;
+  --color-dark_blue: #00479b;
   --color-green: #15803d;
-  --color-yellow: #ca8a04;
-  --color-red: #b91c1c;
-  --color-orange: #c2410c;
+  --color-yellow: #eab308;
+  --color-red: #dc2626;
+  --color-orange: #ea580c;
   --color-pink: #db2777;
-  --color-light_blue: #0284c7;
-  --color-railroad: #475569;
-  --color-utility: #4b5563;
+  --color-light_blue: #38bdf8;
+  --color-railroad: #1f2937;
+  --color-utility: #64748b;
 }
 
 * {
@@ -245,16 +245,124 @@ main {
   margin-bottom: 8px;
 }
 
-/* Discard & Deck row */
-.center-deck-row {
+/* Center Deck & Discard Table Area (Realistic Felt Mat) */
+.center-table-row {
   display: flex;
-  gap: 12px;
-  background: #151f32;
-  border: 1px dashed var(--panel-border);
-  border-radius: 8px;
-  padding: 10px 16px;
   align-items: center;
-  font-size: 0.85rem;
+  justify-content: center;
+  gap: 32px;
+  background: radial-gradient(circle at center, #0f3823 0%, #082115 100%);
+  border: 2px solid #166534;
+  border-radius: 12px;
+  padding: 16px 24px;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.table-slot-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.slot-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #86efac;
+  text-transform: uppercase;
+}
+
+.table-center-divider {
+  width: 1px;
+  height: 140px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.deck-pile-visual,
+.discard-pile-visual {
+  width: 110px;
+  height: 158px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.deck-pile-visual {
+  cursor: default;
+  /* 3D stacked deck shadow effect */
+  box-shadow: 2px 2px 0 #1e3a8a, 4px 4px 0 #0f172a, 6px 6px 12px rgba(0, 0, 0, 0.6);
+  transition: transform 0.15s ease;
+}
+
+.empty-slot-card {
+  width: 100%;
+  height: 100%;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Card Back Visual (Classic Monopoly Deal) */
+.deal-card-back {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #003882 0%, #001f4d 100%);
+  border: 3px solid #ffffff;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.card-back-pattern {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  pointer-events: none;
+}
+
+.card-back-banner {
+  background: #dc2626;
+  border: 2px solid #ffffff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transform: rotate(-6deg);
+  text-align: center;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.card-back-monopoly {
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.card-back-deal {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #facc15;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 /* My Table */
@@ -280,34 +388,44 @@ main {
 .sets-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   min-height: 80px;
 }
 
 .property-group {
   background: #0f172a;
   border: 1px solid var(--panel-border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px;
-  min-width: 140px;
+  min-width: 150px;
+  flex: 1;
+  max-width: 220px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.property-group.is-complete {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.3) !important;
 }
 
 .group-header {
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  padding: 3px 6px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 5px;
   color: white;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .bank-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   min-height: 50px;
   align-items: center;
 }
@@ -323,97 +441,563 @@ main {
 .hand-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   margin-top: 8px;
 }
 
-/* Monopoly Deal Card */
+/* ========================================================
+   MONOPOLY DEAL PHYSICAL CARD STYLING
+======================================================== */
 .deal-card {
-  width: 125px;
-  height: 175px;
-  border-radius: 6px;
+  width: 136px;
+  height: 198px;
+  border-radius: 9px;
   background: #ffffff;
   color: #111827;
-  border: 2px solid #e5e7eb;
-  padding: 8px;
+  border: 2px solid #cbd5e1;
+  padding: 5px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   user-select: none;
   position: relative;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+  font-family: inherit;
 }
 
 .deal-card.interactive:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 14px 24px -2px rgba(0, 0, 0, 0.5);
   cursor: pointer;
+  z-index: 10;
 }
 
-.card-top {
+.deal-card.is-turn-playable {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px #22c55e, 0 6px 14px rgba(34, 197, 94, 0.35);
+}
+
+/* Large preview mode (used in modals and inspector) */
+.deal-card.card-preview {
+  width: 172px;
+  height: 250px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  cursor: default !important;
+  transform: none !important;
+}
+
+/* Card Inner Frame */
+.card-frame {
+  width: 100%;
+  height: 100%;
+  border: 1.5px solid #0f172a;
+  border-radius: 6px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.7rem;
-  font-weight: 700;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  position: relative;
 }
 
-.card-value-circle {
+/* Corner Value Badges ($XM) */
+.card-val-badge {
+  position: absolute;
   width: 22px;
   height: 22px;
   border-radius: 50%;
   background: #facc15;
-  color: #000;
+  color: #111827;
+  font-size: 0.65rem;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1.5px solid #111827;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  z-index: 5;
+  line-height: 1;
+}
+
+.card-val-badge.val-tl {
+  top: 3px;
+  left: 3px;
+}
+
+.card-val-badge.val-br {
+  bottom: 3px;
+  right: 3px;
+}
+
+.card-preview .card-val-badge {
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+  border-width: 2px;
+}
+
+/* --- Card Header Bar --- */
+.card-header-bar {
+  padding: 4px 6px 4px 26px; /* space for top-left badge */
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  border-bottom: 1.5px solid #0f172a;
+  box-sizing: border-box;
+}
+
+.card-preview .card-header-bar {
+  padding-left: 32px;
+  min-height: 36px;
+}
+
+.card-header-title {
+  font-size: 0.68rem;
   font-weight: 800;
-  font-size: 0.65rem;
-  border: 1px solid #ca8a04;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  text-align: center;
 }
 
-.card-color-stripe {
-  height: 20px;
-  border-radius: 4px;
-  margin-top: 4px;
+.card-preview .card-header-title {
+  font-size: 0.82rem;
+}
+
+.card-header-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  margin-left: 4px;
 }
 
-.card-title {
-  font-size: 0.75rem;
-  font-weight: 700;
+/* --- Property Card Rent Table --- */
+.card-rent-table {
+  flex: 1;
+  margin: 6px 6px 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px;
+  background: #f8fafc;
+}
+
+.rent-table-title {
+  font-size: 0.62rem;
+  font-weight: 900;
   text-align: center;
-  margin: 6px 0;
-  line-height: 1.15;
+  color: #0f172a;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #cbd5e1;
+  padding-bottom: 2px;
+  margin-bottom: 2px;
 }
 
-.card-desc {
+.rent-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 0.6rem;
-  color: #4b5563;
+  padding: 1px 4px;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.rent-row:nth-child(even) {
+  background: rgba(226, 232, 240, 0.5);
+  border-radius: 2px;
+}
+
+.rent-amount {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.card-set-badge {
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: uppercase;
   text-align: center;
+  padding: 2px 4px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  color: #334155;
+  margin-top: 2px;
+}
+
+.card-house-note {
+  font-size: 0.52rem;
+  color: #64748b;
+  text-align: center;
+  margin: 0 4px 20px 4px; /* leave space for bottom badge */
   line-height: 1.1;
+  font-weight: 600;
+}
+
+/* --- Action Cards --- */
+.action-art-container {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 4px;
 }
 
-.mini-card {
+.action-art-svg {
+  width: 54px;
+  height: 54px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.card-preview .action-art-svg {
+  width: 72px;
+  height: 72px;
+}
+
+.action-art-img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  border-radius: 6px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+  transition: transform 0.15s ease;
+}
+
+.card-preview .action-art-img {
+  width: 104px;
+  height: 104px;
+}
+
+.banknote-tycoon-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid currentColor;
+  margin-bottom: 2px;
+}
+
+.card-preview .banknote-tycoon-img {
+  width: 36px;
+  height: 36px;
+}
+
+.action-rule-box {
+  background: #f1f5f9;
+  border-top: 1.5px solid #0f172a;
+  padding: 5px 6px 18px 6px; /* space for bottom-right badge */
+  text-align: center;
+  font-size: 0.58rem;
+  line-height: 1.15;
+  color: #0f172a;
+  font-weight: 600;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-preview .action-rule-box {
+  font-size: 0.72rem;
+  padding-bottom: 24px;
+}
+
+/* --- Wild Property Cards --- */
+.wild-split-header {
+  min-height: 28px;
+  display: flex;
+  border-bottom: 1.5px solid #0f172a;
+  position: relative;
+  padding-left: 24px;
+}
+
+.wild-split-col {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.wild-dual-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.wild-swap-icon {
+  font-size: 1.2rem;
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.wild-rainbow-wheel {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: conic-gradient(#6e3b23, #38bdf8, #db2777, #ea580c, #dc2626, #eab308, #15803d, #00479b, #1f2937, #64748b, #6e3b23);
+  border: 2px solid #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.wild-wheel-center {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 0.6rem;
+}
+
+/* --- Money Cards (Authentic Banknote Styling) --- */
+.deal-card.card-money {
+  padding: 4px;
+}
+
+.banknote-frame {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  border: 2px dashed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 6px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.money-theme-10 {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+
+.money-theme-5 {
+  background: #f3e8ff;
+  border-color: #9333ea;
+  color: #6b21a8;
+}
+
+.money-theme-4 {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  color: #0369a1;
+}
+
+.money-theme-3 {
+  background: #dcfce7;
+  border-color: #16a34a;
+  color: #14532d;
+}
+
+.money-theme-2 {
+  background: #ffe4e6;
+  border-color: #e11d48;
+  color: #9f1239;
+}
+
+.money-theme-1 {
+  background: #fefce8;
+  border-color: #ca8a04;
+  color: #713f12;
+}
+
+.banknote-top-header {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.banknote-center-oval {
+  width: 82px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.08);
+}
+
+.card-preview .banknote-center-oval {
+  width: 105px;
+  height: 72px;
+}
+
+.banknote-amount {
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  font-family: Georgia, serif;
+}
+
+.card-preview .banknote-amount {
+  font-size: 1.6rem;
+}
+
+.banknote-label {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.banknote-bottom-banner {
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.banknote-corner {
+  position: absolute;
+  font-size: 0.6rem;
+  font-weight: 900;
+  font-family: Georgia, serif;
+}
+.banknote-corner.c-tl { top: 4px; left: 6px; }
+.banknote-corner.c-tr { top: 4px; right: 6px; }
+.banknote-corner.c-bl { bottom: 4px; left: 6px; }
+.banknote-corner.c-br { bottom: 4px; right: 6px; }
+
+/* ========================================================
+   TABLETOP MINI CARDS & BANKNOTES
+======================================================== */
+/* Mini Property Cards laid on table */
+.mini-property-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 5px 8px;
-  border-radius: 4px;
+  border-radius: 5px;
   background: #ffffff;
   color: #0f172a;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border: 1px solid #cbd5e1;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-left: 5px solid #0f172a;
+  border-top: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.mini-property-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.mini-prop-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.mini-prop-badge {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.mini-wild-tag {
+  background: #fef08a;
+  color: #854d0e;
+  font-size: 0.55rem;
+  font-weight: 800;
+  padding: 1px 3px;
+  border-radius: 2px;
+  margin-left: 4px;
+}
+
+/* Mini Bank Bills in Bank Container */
+.mini-bank-bill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: 1px dashed;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.mini-bank-bill:hover {
+  transform: translateY(-2px);
+}
+
+.mini-bank-val {
+  font-family: Georgia, serif;
+  font-weight: 900;
+}
+
+/* Modal Improvements */
+.modal-card-dialog {
+  max-width: 440px;
+}
+
+.modal-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 8px;
+}
+
+.modal-close-x {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.modal-close-x:hover {
+  color: #ffffff;
+}
+
+.modal-card-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0;
 }
 
 /* Sidebar / Log */

@@ -72,10 +72,31 @@
           <div id="opponents-container" class="opponents-row"></div>
         </div>
 
-        <!-- Center Deck & Discard -->
-        <div class="center-deck-row">
-          <div>🎴 Deck Remaining: <strong id="deck-count">0</strong></div>
-          <div style="margin-left: auto;">Last Discarded: <strong id="discard-top">None</strong></div>
+        <!-- Center Deck & Discard Table Area -->
+        <div class="center-table-row">
+          <div class="table-slot-container">
+            <div class="slot-label">DRAW PILE (<span id="deck-count">0</span>)</div>
+            <div id="deck-pile-slot" class="deck-pile-visual" title="Draw Deck">
+              <div class="deal-card-back">
+                <div class="card-back-pattern"></div>
+                <div class="card-back-banner">
+                  <div class="card-back-monopoly">MONOPOLY</div>
+                  <div class="card-back-deal">DEAL</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-center-divider"></div>
+
+          <div class="table-slot-container">
+            <div class="slot-label">DISCARD PILE (<span id="discard-top-label">Empty</span>)</div>
+            <div id="discard-pile-slot" class="discard-pile-visual" title="Top Discarded Card">
+              <div class="empty-slot-card">No Discards</div>
+            </div>
+            <!-- Hidden sync element for backwards compatibility -->
+            <span id="discard-top" class="hidden">None</span>
+          </div>
         </div>
 
         <!-- My Table (Bank & Properties) -->
@@ -107,11 +128,27 @@
 
   <!-- ACTION MODAL -->
   <div id="action-modal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <h3 id="modal-card-title">Play Card</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted);">Select how you want to play this card:</p>
+    <div class="modal-content modal-card-dialog">
+      <div class="modal-header-row">
+        <h3 id="modal-card-title">Play Card</h3>
+        <button id="modal-close-x" class="modal-close-x" aria-label="Close">✕</button>
+      </div>
+      <div id="modal-card-preview" class="modal-card-preview"></div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">Select how you want to play this card:</p>
       <div id="modal-actions-container" class="modal-actions"></div>
       <button id="modal-close-btn" class="btn-secondary" style="margin-top: 8px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- INSPECT MODAL -->
+  <div id="inspect-modal" class="modal-overlay hidden">
+    <div class="modal-content modal-card-dialog">
+      <div class="modal-header-row">
+        <h3 id="inspect-card-title">Card Details</h3>
+        <button id="inspect-close-x" class="modal-close-x" aria-label="Close">✕</button>
+      </div>
+      <div id="inspect-card-preview" class="modal-card-preview"></div>
+      <button id="inspect-close-btn" class="btn-secondary" style="margin-top: 8px;">Close</button>
     </div>
   </div>
 
