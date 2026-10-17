@@ -128,8 +128,9 @@ class GameEngine {
         switch ($targetType) {
             case 'bank':
                 // Any money, action, or rent card can be banked
-                $player['bank'][] = $card;
-                self::addLog($state, "{$player['name']} banked {$card['name']} ({$card['value']}M).");
+                $valStr = '$' . $card['value'] . 'M';
+                $extra = $card['type'] !== 'money' ? " ({$valStr})" : "";
+                self::addLog($state, "{$player['name']} banked {$card['name']}{$extra}.");
                 break;
 
             case 'property':
@@ -235,7 +236,7 @@ class GameEngine {
                     }
                     unset($target);
                     $state['discard'][] = $card;
-                    self::addLog($state, "{$player['name']} played It's My Birthday! Collected up to 2M from each player.");
+                    self::addLog($state, "{$player['name']} played It's My Birthday! Collected up to $2M from each player.");
                     return;
 
                 case 'debt_collector':
@@ -246,7 +247,7 @@ class GameEngine {
                     $target = &$state['players'][$targetId];
                     self::transferPayment($target, $player, 5);
                     $state['discard'][] = $card;
-                    self::addLog($state, "{$player['name']} used Debt Collector on {$target['name']} for up to 5M.");
+                    self::addLog($state, "{$player['name']} used Debt Collector on {$target['name']} for up to $5M.");
                     return;
 
                 default:
@@ -270,7 +271,7 @@ class GameEngine {
                 unset($target);
             }
             $state['discard'][] = $card;
-            self::addLog($state, "{$player['name']} charged {$rentValue}M rent for " . CardDefinitions::SET_RULES[$color]['name'] . ".");
+            self::addLog($state, "{$player['name']} charged \${$rentValue}M rent for " . CardDefinitions::SET_RULES[$color]['name'] . ".");
             return;
         }
 

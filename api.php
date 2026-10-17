@@ -32,9 +32,9 @@ try {
                         'name' => 'You',
                         'is_host' => true,
                         'bank' => [
-                            ['id' => 'card_b1', 'type' => 'money', 'name' => '5M Money', 'value' => 5, 'colors' => []],
-                            ['id' => 'card_b2', 'type' => 'money', 'name' => '2M Money', 'value' => 2, 'colors' => []],
-                            ['id' => 'card_b3', 'type' => 'action', 'action' => 'birthday', 'name' => "It's My Birthday", 'value' => 2, 'desc' => 'All players pay you 2M.', 'colors' => []],
+                            ['id' => 'card_b1', 'type' => 'money', 'name' => '$5M Money', 'value' => 5, 'colors' => []],
+                            ['id' => 'card_b2', 'type' => 'money', 'name' => '$2M Money', 'value' => 2, 'colors' => []],
+                            ['id' => 'card_b3', 'type' => 'action', 'action' => 'birthday', 'name' => "It's My Birthday", 'value' => 2, 'desc' => 'All players pay you $2M.', 'colors' => []],
                         ],
                         'property_sets' => [
                             'dark_blue' => [
@@ -52,10 +52,10 @@ try {
                         'hand' => [
                             ['id' => 'card_h1', 'type' => 'action', 'action' => 'deal_breaker', 'name' => 'Deal Breaker', 'value' => 5, 'desc' => 'Steal a completed set of properties.', 'colors' => []],
                             ['id' => 'card_h2', 'type' => 'action', 'action' => 'pass_go', 'name' => 'Pass Go', 'value' => 1, 'desc' => 'Draw 2 extra cards.', 'colors' => []],
-                            ['id' => 'card_h3', 'type' => 'action', 'action' => 'debt_collector', 'name' => 'Debt Collector', 'value' => 3, 'desc' => 'Force any player to pay you 5M.', 'colors' => []],
+                            ['id' => 'card_h3', 'type' => 'action', 'action' => 'debt_collector', 'name' => 'Debt Collector', 'value' => 3, 'desc' => 'Force any player to pay you $5M.', 'colors' => []],
                             ['id' => 'card_h4', 'type' => 'property', 'name' => 'Pennsylvania Avenue', 'value' => 4, 'group' => 'green', 'colors' => ['green']],
                             ['id' => 'card_h5', 'type' => 'wild_property', 'name' => 'Wild Property (Red / Yellow)', 'value' => 3, 'colors' => ['red', 'yellow'], 'current_color' => 'red'],
-                            ['id' => 'card_h6', 'type' => 'money', 'name' => '10M Money', 'value' => 10, 'colors' => []],
+                            ['id' => 'card_h6', 'type' => 'money', 'name' => '$10M Money', 'value' => 10, 'colors' => []],
                         ],
                     ],
                     $p2Id => [
@@ -63,8 +63,8 @@ try {
                         'name' => 'Sarah',
                         'is_host' => false,
                         'bank' => [
-                            ['id' => 'card_sb1', 'type' => 'money', 'name' => '3M Money', 'value' => 3, 'colors' => []],
-                            ['id' => 'card_sb2', 'type' => 'money', 'name' => '1M Money', 'value' => 1, 'colors' => []],
+                            ['id' => 'card_sb1', 'type' => 'money', 'name' => '$3M Money', 'value' => 3, 'colors' => []],
+                            ['id' => 'card_sb2', 'type' => 'money', 'name' => '$1M Money', 'value' => 1, 'colors' => []],
                         ],
                         'property_sets' => [
                             'brown' => [
@@ -85,7 +85,7 @@ try {
                         'name' => 'Alex',
                         'is_host' => false,
                         'bank' => [
-                            ['id' => 'card_ab1', 'type' => 'money', 'name' => '4M Money', 'value' => 4, 'colors' => []],
+                            ['id' => 'card_ab1', 'type' => 'money', 'name' => '$4M Money', 'value' => 4, 'colors' => []],
                         ],
                         'property_sets' => [
                             'orange' => [
@@ -111,7 +111,7 @@ try {
                 'logs' => [
                     ['time' => $now - 120, 'text' => 'Game started with 3 players.'],
                     ['time' => $now - 95, 'text' => 'Sarah completed the Brown property set (2/2)!'],
-                    ['time' => $now - 60, 'text' => 'Alex banked 4M Money.'],
+                    ['time' => $now - 60, 'text' => 'Alex banked $4M Money.'],
                     ['time' => $now - 30, 'text' => 'Sarah passed turn to Alex.'],
                     ['time' => $now - 10, 'text' => "Now it's Your turn! You drew 2 cards."],
                 ],

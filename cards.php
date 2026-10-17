@@ -29,7 +29,7 @@ class CardDefinitions {
                 $deck[] = [
                     'id' => 'card_' . ($id++),
                     'type' => 'money',
-                    'name' => "{$val}M Money",
+                    'name' => "\${$val}M Money",
                     'value' => $val,
                     'colors' => [],
                 ];
@@ -114,10 +114,10 @@ class CardDefinitions {
             ['action' => 'sly_deal', 'name' => 'Sly Deal', 'value' => 3, 'count' => 3, 'desc' => 'Steal a single property.'],
             ['action' => 'forced_deal', 'name' => 'Forced Deal', 'value' => 3, 'count' => 3, 'desc' => 'Swap 1 property with another player.'],
             ['action' => 'deal_breaker', 'name' => 'Deal Breaker', 'value' => 5, 'count' => 2, 'desc' => 'Steal a completed set of properties.'],
-            ['action' => 'debt_collector', 'name' => 'Debt Collector', 'value' => 3, 'count' => 3, 'desc' => 'Force any player to pay you 5M.'],
-            ['action' => 'birthday', 'name' => "It's My Birthday", 'value' => 2, 'count' => 3, 'desc' => 'All players pay you 2M.'],
-            ['action' => 'house', 'name' => 'House', 'value' => 3, 'count' => 3, 'desc' => 'Add to a full set for +3M rent.'],
-            ['action' => 'hotel', 'name' => 'Hotel', 'value' => 4, 'count' => 2, 'desc' => 'Add to a set with a house for +4M rent.'],
+            ['action' => 'debt_collector', 'name' => 'Debt Collector', 'value' => 3, 'count' => 3, 'desc' => 'Force any player to pay you $5M.'],
+            ['action' => 'birthday', 'name' => "It's My Birthday", 'value' => 2, 'count' => 3, 'desc' => 'All players pay you $2M.'],
+            ['action' => 'house', 'name' => 'House', 'value' => 3, 'count' => 3, 'desc' => 'Add to a full set for +$3M rent.'],
+            ['action' => 'hotel', 'name' => 'Hotel', 'value' => 4, 'count' => 2, 'desc' => 'Add to a set with a house for +$4M rent.'],
             ['action' => 'double_rent', 'name' => 'Double The Rent', 'value' => 1, 'count' => 2, 'desc' => 'Double rent on your next rent card.'],
         ];
 

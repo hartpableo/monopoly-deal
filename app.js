@@ -354,7 +354,7 @@ function renderMyTable(myPlayer) {
   (myPlayer.bank || []).forEach(c => {
     const el = document.createElement('div');
     el.className = 'mini-card';
-    el.textContent = `${c.name} ($${c.value}M)`;
+    el.textContent = c.name.includes('$') ? c.name : `${c.name} ($${c.value}M)`;
     bankContainer.appendChild(el);
   });
 
@@ -528,7 +528,7 @@ function openCardModal(card) {
       let params = {};
       if (card.action === 'debt_collector') {
         const opponents = Object.values(currentGameState.players).filter(p => p.id !== currentPlayerData.id);
-        const targetName = prompt(`Select player to collect 5M from:\n` + opponents.map(p => `${p.name} (id: ${p.id})`).join('\n'));
+        const targetName = prompt(`Select player to collect $5M from:\n` + opponents.map(p => `${p.name} (id: ${p.id})`).join('\n'));
         const target = opponents.find(p => p.id === targetName || p.name.toLowerCase() === (targetName || '').toLowerCase());
         if (!target) return alert('Invalid player selected.');
         params.target_player_id = target.id;
