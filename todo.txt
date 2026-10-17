@@ -1,0 +1,8 @@
+- prevent properties from being converted to cash
+- fix "move" color
+- sly deal - user must be able to choose from non-set properties of selected opponent
+- review payments - re-evaluate card values
+- moving cards around must not count as a move/turn
+- toast alerts with sounds
+- double the rent must be 2x only
+- winner announcement
