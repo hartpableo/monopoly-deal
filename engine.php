@@ -28,6 +28,7 @@ class GameEngine {
                 'rent_multiplier' => 1,
             ],
             'winner_id' => null,
+            'pending_payment' => null,
             'logs' => [
                 ['time' => time(), 'text' => "Game lobby created by " . htmlspecialchars($hostName)]
             ],
@@ -100,6 +101,9 @@ class GameEngine {
     public static function playCard(array &$state, string $playerId, string $cardId, string $targetType, array $params = []): void {
         if ($state['status'] !== 'playing') {
             throw new Exception("Game is not active.");
+        }
+        if (!empty($state['pending_payment'])) {
+            throw new Exception("Waiting for pending payment(s) to be resolved.");
         }
         if ($state['turn']['active_player_id'] !== $playerId) {
             throw new Exception("Not your turn!");
@@ -174,11 +178,15 @@ class GameEngine {
 
         $state['turn']['actions_left']--;
         self::checkWinCondition($state);
+        self::checkAutoEndTurn($state);
     }
 
     public static function moveProperty(array &$state, string $playerId, string $cardId, string $toColor): void {
         if ($state['status'] !== 'playing') {
             throw new Exception("Game is not active.");
+        }
+        if (!empty($state['pending_payment'])) {
+            throw new Exception("Waiting for pending payment(s) to be resolved.");
         }
         if ($state['turn']['active_player_id'] !== $playerId) {
             throw new Exception("Not your turn!");
@@ -240,38 +248,70 @@ class GameEngine {
         if ($state['status'] !== 'playing') {
             throw new Exception("Game is not active.");
         }
+        if (!empty($state['pending_payment'])) {
+            throw new Exception("Waiting for pending payment(s) to be resolved.");
+        }
         if ($state['turn']['active_player_id'] !== $playerId) {
             throw new Exception("Not your turn!");
         }
 
         $player = &$state['players'][$playerId];
 
-        // Hand limit check (max 7 cards at end of turn)
-        $excessCount = count($player['hand']) - 7;
-        if ($excessCount > 0) {
-            if (count($discardCardIds) !== $excessCount) {
-                throw new Exception("You must discard exactly {$excessCount} card(s) to end your turn.");
-            }
+        self::handleExcessCards($state, $playerId);
+        self::advanceToNextTurn($state, $playerId);
+    }
 
-            foreach ($discardCardIds as $dId) {
-                $found = false;
-                foreach ($player['hand'] as $hIdx => $hCard) {
-                    if ($hCard['id'] === $dId) {
-                        $state['discard'][] = $hCard;
-                        array_splice($player['hand'], $hIdx, 1);
-                        $found = true;
-                        break;
-                    }
-                }
-                if (!$found) {
-                    throw new Exception("Card to discard not found in hand.");
-                }
-            }
+    /**
+     * When a player has more than 7 cards at the end of their turn,
+     * randomly pick the excess cards and return them to the drawable cards (deck).
+     * Records private notification info for this player.
+     */
+    public static function handleExcessCards(array &$state, string $playerId): void {
+        if (!isset($state['players'][$playerId])) {
+            return;
+        }
+        $player = &$state['players'][$playerId];
+        $handCount = count($player['hand']);
+        $excessCount = $handCount - 7;
+        if ($excessCount <= 0) {
+            return;
         }
 
-        // Advance to next player
+        // Randomly pick $excessCount cards from the player's hand
+        $keys = array_rand($player['hand'], $excessCount);
+        if (!is_array($keys)) {
+            $keys = [$keys];
+        }
+
+        $returnedCards = [];
+        // Sort keys descending so array_splice does not shift following indices
+        rsort($keys);
+        foreach ($keys as $key) {
+            $card = $player['hand'][$key];
+            $returnedCards[] = $card;
+            array_splice($player['hand'], $key, 1);
+            // Return to drawable cards (deck)
+            array_unshift($state['deck'], $card);
+        }
+
+        // Private notification data for the player (sanitizer will strip for opponents)
+        $player['excess_cards_returned'] = [
+            'count' => $excessCount,
+            'initial_count' => $handCount,
+            'cards' => $returnedCards,
+            'timestamp' => microtime(true),
+            'turn_number' => $state['turn']['turn_number'] ?? 1
+        ];
+
+        // Public activity log (does not reveal exact card identities)
+        self::addLog($state, "⚠️ {$player['name']} had {$handCount} cards (exceeded 7 limit). {$excessCount} card(s) were randomly returned to the draw deck.");
+    }
+
+    public static function advanceToNextTurn(array &$state, string $playerId, string $customLogReason = ""): void {
+        $player = &$state['players'][$playerId];
         $order = $state['turn_order'];
         $currentIndex = array_search($playerId, $order, true);
+        if ($currentIndex === false) return;
         $nextIndex = ($currentIndex + 1) % count($order);
         $nextPlayerId = $order[$nextIndex];
 
@@ -284,7 +324,24 @@ class GameEngine {
         self::drawCardsForPlayer($state, $nextPlayerId, $drawCount);
 
         $nextName = $state['players'][$nextPlayerId]['name'];
-        self::addLog($state, "{$player['name']} ended their turn. Now it's {$nextName}'s turn.");
+        $reason = $customLogReason ?: "{$player['name']} ended their turn.";
+        self::addLog($state, "{$reason} Now it's {$nextName}'s turn.");
+    }
+
+    public static function checkAutoEndTurn(array &$state): void {
+        if ($state['status'] !== 'playing' || !empty($state['pending_payment'])) {
+            return;
+        }
+        if (($state['turn']['actions_left'] ?? 3) > 0) {
+            return;
+        }
+        $activeId = $state['turn']['active_player_id'] ?? null;
+        if (!$activeId || !isset($state['players'][$activeId])) {
+            return;
+        }
+        $activePlayer = $state['players'][$activeId];
+        self::handleExcessCards($state, $activeId);
+        self::advanceToNextTurn($state, $activeId, "{$activePlayer['name']} used all 3 actions.");
     }
 
     private static function handleActionCard(array &$state, string $playerId, array $card, array $params): void {
@@ -299,14 +356,28 @@ class GameEngine {
                     return;
 
                 case 'birthday':
-                    // Each opponent pays 2M to active player
-                    foreach ($state['players'] as $targetId => &$target) {
+                    $payers = [];
+                    foreach ($state['players'] as $targetId => $target) {
                         if ($targetId === $playerId) continue;
-                        self::transferPayment($target, $player, 2);
+                        $payers[$targetId] = [
+                            'name' => $target['name'],
+                            'amount_due' => 2,
+                            'paid' => false,
+                        ];
                     }
-                    unset($target);
-                    $state['discard'][] = $card;
-                    self::addLog($state, "{$player['name']} played It's My Birthday! Collected up to $2M from each player.");
+                    if (empty($payers)) {
+                        $state['discard'][] = $card;
+                        self::addLog($state, "{$player['name']} played It's My Birthday, but there are no opponents to pay.");
+                        return;
+                    }
+                    $state['pending_payment'] = [
+                        'collector_id' => $playerId,
+                        'collector_name' => $player['name'],
+                        'action_card' => $card,
+                        'reason' => "It's My Birthday ($2M)",
+                        'payers' => $payers,
+                    ];
+                    self::addLog($state, "🎂 {$player['name']} celebrated their Birthday! Demanded $2M from all opponents.");
                     return;
 
                 case 'debt_collector':
@@ -314,10 +385,21 @@ class GameEngine {
                     if (!$targetId || !isset($state['players'][$targetId]) || $targetId === $playerId) {
                         throw new Exception("Select a valid target player for Debt Collector.");
                     }
-                    $target = &$state['players'][$targetId];
-                    self::transferPayment($target, $player, 5);
-                    $state['discard'][] = $card;
-                    self::addLog($state, "{$player['name']} used Debt Collector on {$target['name']} for up to $5M.");
+                    $target = $state['players'][$targetId];
+                    $state['pending_payment'] = [
+                        'collector_id' => $playerId,
+                        'collector_name' => $player['name'],
+                        'action_card' => $card,
+                        'reason' => "Debt Collector ($5M)",
+                        'payers' => [
+                            $targetId => [
+                                'name' => $target['name'],
+                                'amount_due' => 5,
+                                'paid' => false,
+                            ]
+                        ],
+                    ];
+                    self::addLog($state, "💰 {$player['name']} used Debt Collector on {$target['name']} demanding $5M!");
                     return;
 
                 case 'double_rent':
@@ -562,18 +644,44 @@ class GameEngine {
                 if (!$targetId || !isset($state['players'][$targetId]) || $targetId === $playerId) {
                     throw new Exception("Select a valid target player for Wild Rent.");
                 }
-                $target = &$state['players'][$targetId];
-                self::transferPayment($target, $player, $rentValue);
-                $state['discard'][] = $card;
+                $target = $state['players'][$targetId];
+                $state['pending_payment'] = [
+                    'collector_id' => $playerId,
+                    'collector_name' => $player['name'],
+                    'action_card' => $card,
+                    'reason' => "Wild Rent ({$colorName}) - \${$rentValue}M{$multText}",
+                    'payers' => [
+                        $targetId => [
+                            'name' => $target['name'],
+                            'amount_due' => $rentValue,
+                            'paid' => false,
+                        ]
+                    ],
+                ];
                 self::addLog($state, "💰 {$player['name']} charged {$target['name']} \${$rentValue}M wild rent for {$colorName}{$multText}.");
             } else {
                 // Standard Rent targets ALL opponents
-                foreach ($state['players'] as $targetId => &$target) {
+                $payers = [];
+                foreach ($state['players'] as $targetId => $target) {
                     if ($targetId === $playerId) continue;
-                    self::transferPayment($target, $player, $rentValue);
+                    $payers[$targetId] = [
+                        'name' => $target['name'],
+                        'amount_due' => $rentValue,
+                        'paid' => false,
+                    ];
                 }
-                unset($target);
-                $state['discard'][] = $card;
+                if (empty($payers)) {
+                    $state['discard'][] = $card;
+                    self::addLog($state, "{$player['name']} charged rent, but there are no opponents to pay.");
+                    return;
+                }
+                $state['pending_payment'] = [
+                    'collector_id' => $playerId,
+                    'collector_name' => $player['name'],
+                    'action_card' => $card,
+                    'reason' => "Rent ({$colorName}) - \${$rentValue}M{$multText}",
+                    'payers' => $payers,
+                ];
                 self::addLog($state, "💰 {$player['name']} charged all opponents \${$rentValue}M rent for {$colorName}{$multText}.");
             }
             return;
@@ -634,44 +742,226 @@ class GameEngine {
     }
 
     /**
-     * Deducts up to $amount from payer's bank or properties and transfers to collector.
+     * Resolves payment from a payer choosing cards from their bank and/or properties.
      */
-    private static function transferPayment(array &$payer, array &$collector, int $amount): void {
-        $remaining = $amount;
-
-        // Pay from bank first
-        while ($remaining > 0 && !empty($payer['bank'])) {
-            $paidCard = array_shift($payer['bank']);
-            $collector['bank'][] = $paidCard;
-            $remaining -= $paidCard['value'];
+    public static function resolvePayment(array &$state, string $playerId, array $cardIds): void {
+        if ($state['status'] !== 'playing') {
+            throw new Exception("Game is not active.");
+        }
+        if (empty($state['pending_payment'])) {
+            throw new Exception("No pending payment to resolve.");
+        }
+        $pending = &$state['pending_payment'];
+        if (!isset($pending['payers'][$playerId])) {
+            throw new Exception("You do not owe any payment.");
+        }
+        if ($pending['payers'][$playerId]['paid']) {
+            throw new Exception("You have already paid.");
         }
 
-        // Pay from properties if bank was insufficient
-        if ($remaining > 0) {
-            foreach ($payer['property_sets'] as $color => &$cards) {
-                while ($remaining > 0 && !empty($cards)) {
-                    $paidCard = array_shift($cards);
-                    if (in_array($paidCard['type'] ?? '', ['property', 'wild_property'], true)) {
-                        if (!isset($collector['property_sets'][$color])) {
-                            $collector['property_sets'][$color] = [];
-                        }
-                        $collector['property_sets'][$color][] = $paidCard;
-                    } else {
-                        // Building cards (house/hotel) taken as debt go to collector's bank
-                        $collector['bank'][] = $paidCard;
-                    }
-                    $remaining -= $paidCard['value'];
-                }
-            }
-            unset($cards);
+        $payer = &$state['players'][$playerId];
+        $collectorId = $pending['collector_id'];
+        if (!isset($state['players'][$collectorId])) {
+            // Collector left, cancel pending payment
+            $state['discard'][] = $pending['action_card'];
+            $state['pending_payment'] = null;
+            return;
+        }
+        $collector = &$state['players'][$collectorId];
+        $amountDue = (int)$pending['payers'][$playerId]['amount_due'];
 
-            // Clean up empty property sets
-            foreach ($payer['property_sets'] as $col => $cList) {
-                if (empty($cList)) {
+        // Gather all cards on payer's table (bank + properties)
+        $allTableCards = [];
+        foreach ($payer['bank'] as $bCard) {
+            $allTableCards[$bCard['id']] = ['location' => 'bank', 'card' => $bCard];
+        }
+        foreach ($payer['property_sets'] as $color => $pCards) {
+            foreach ($pCards as $pCard) {
+                $allTableCards[$pCard['id']] = ['location' => 'property', 'color' => $color, 'card' => $pCard];
+            }
+        }
+
+        $totalTableValue = 0;
+        foreach ($allTableCards as $info) {
+            $totalTableValue += (int)($info['card']['value'] ?? 0);
+        }
+
+        // Validate selected cards
+        $selectedCards = [];
+        $selectedTotal = 0;
+        $seen = [];
+        foreach ($cardIds as $cid) {
+            if (isset($seen[$cid])) {
+                throw new Exception("Duplicate card in payment selection.");
+            }
+            $seen[$cid] = true;
+            if (!isset($allTableCards[$cid])) {
+                throw new Exception("Card {$cid} is not on your table.");
+            }
+            $info = $allTableCards[$cid];
+            $selectedCards[] = $info;
+            $selectedTotal += (int)($info['card']['value'] ?? 0);
+        }
+
+        // Rule verification
+        if ($totalTableValue === 0) {
+            if (!empty($cardIds)) {
+                throw new Exception("You have no assets on your table to pay with.");
+            }
+        } elseif ($totalTableValue <= $amountDue) {
+            // Cannot cover full amount, must pay everything on table
+            if (count($selectedCards) !== count($allTableCards)) {
+                throw new Exception("You cannot afford the full \${$amountDue}M. You must surrender all cards on your table (\${$totalTableValue}M).");
+            }
+        } else {
+            // Can cover full amount, selected cards must equal or exceed amount due
+            if ($selectedTotal < $amountDue) {
+                throw new Exception("Selected cards total \${$selectedTotal}M, but you owe \${$amountDue}M.");
+            }
+        }
+
+        // Transfer cards from payer to collector
+        $cardNames = [];
+        foreach ($selectedCards as $info) {
+            $c = $info['card'];
+            $cardNames[] = $c['name'];
+            if ($info['location'] === 'bank') {
+                // Remove from payer bank
+                $payer['bank'] = array_values(array_filter($payer['bank'], fn($bc) => $bc['id'] !== $c['id']));
+                // Add to collector bank
+                $collector['bank'][] = $c;
+            } elseif ($info['location'] === 'property') {
+                $col = $info['color'];
+                // Remove from payer property set
+                $payer['property_sets'][$col] = array_values(array_filter(
+                    $payer['property_sets'][$col] ?? [],
+                    fn($pc) => $pc['id'] !== $c['id']
+                ));
+                if (empty($payer['property_sets'][$col])) {
                     unset($payer['property_sets'][$col]);
                 }
+
+                // Transfer to collector
+                if (in_array($c['type'] ?? '', ['property', 'wild_property'], true)) {
+                    $targetColor = $c['type'] === 'wild_property'
+                        ? ($c['current_color'] ?? $c['colors'][0] ?? $col)
+                        : ($c['group'] ?? $col);
+                    if (!isset($collector['property_sets'][$targetColor])) {
+                        $collector['property_sets'][$targetColor] = [];
+                    }
+                    $collector['property_sets'][$targetColor][] = $c;
+                } else {
+                    // House or hotel goes to collector bank as money value
+                    $collector['bank'][] = $c;
+                }
             }
         }
+
+        // Check for broken sets on payer with houses/hotels
+        foreach ($payer['property_sets'] as $col => &$setCards) {
+            if (!self::isCompleteSet($setCards, $col)) {
+                $retained = [];
+                foreach ($setCards as $sc) {
+                    if (in_array($sc['action'] ?? '', ['house', 'hotel'], true)) {
+                        $payer['bank'][] = $sc;
+                    } else {
+                        $retained[] = $sc;
+                    }
+                }
+                $setCards = $retained;
+            }
+        }
+        unset($setCards);
+        foreach ($payer['property_sets'] as $col => $sc) {
+            if (empty($sc)) unset($payer['property_sets'][$col]);
+        }
+
+        if (empty($cardNames)) {
+            self::addLog($state, "⚪ {$payer['name']} had no assets on table and paid \$0.");
+        } else {
+            $paidList = implode(', ', $cardNames);
+            self::addLog($state, "💵 {$payer['name']} paid \${$selectedTotal}M ({$paidList}) to {$collector['name']}.");
+        }
+
+        $pending['payers'][$playerId]['paid'] = true;
+
+        // Check if all payers have completed payment
+        $allDone = true;
+        foreach ($pending['payers'] as $pInfo) {
+            if (!$pInfo['paid']) {
+                $allDone = false;
+                break;
+            }
+        }
+
+        if ($allDone) {
+            $state['discard'][] = $pending['action_card'];
+            $state['pending_payment'] = null;
+        }
+
+        self::checkWinCondition($state);
+        self::checkAutoEndTurn($state);
+    }
+
+    /**
+     * Resolves Just Say No by payer to cancel payment.
+     */
+    public static function resolveJustSayNo(array &$state, string $playerId): void {
+        if ($state['status'] !== 'playing') {
+            throw new Exception("Game is not active.");
+        }
+        if (empty($state['pending_payment'])) {
+            throw new Exception("No pending payment to cancel.");
+        }
+        $pending = &$state['pending_payment'];
+        if (!isset($pending['payers'][$playerId])) {
+            throw new Exception("You do not owe any payment.");
+        }
+        if ($pending['payers'][$playerId]['paid']) {
+            throw new Exception("You have already resolved your payment.");
+        }
+
+        $payer = &$state['players'][$playerId];
+        $collectorId = $pending['collector_id'];
+        $collectorName = $state['players'][$collectorId]['name'] ?? 'opponent';
+
+        // Check if payer has Just Say No in hand
+        $jsnIndex = -1;
+        $jsnCard = null;
+        foreach ($payer['hand'] as $idx => $c) {
+            if (($c['action'] ?? '') === 'just_say_no') {
+                $jsnIndex = $idx;
+                $jsnCard = $c;
+                break;
+            }
+        }
+
+        if (!$jsnCard) {
+            throw new Exception("You do not have a Just Say No card in your hand.");
+        }
+
+        // Discard the Just Say No card
+        array_splice($payer['hand'], $jsnIndex, 1);
+        $state['discard'][] = $jsnCard;
+
+        self::addLog($state, "🛑 {$payer['name']} played JUST SAY NO against {$collectorName}!");
+
+        $pending['payers'][$playerId]['paid'] = true;
+
+        $allDone = true;
+        foreach ($pending['payers'] as $pInfo) {
+            if (!$pInfo['paid']) {
+                $allDone = false;
+                break;
+            }
+        }
+
+        if ($allDone) {
+            $state['discard'][] = $pending['action_card'];
+            $state['pending_payment'] = null;
+        }
+
+        self::checkAutoEndTurn($state);
     }
 
     public static function drawCardsForPlayer(array &$state, string $playerId, int $count): void {
@@ -728,6 +1018,9 @@ class GameEngine {
             if ($pid !== $playerId) {
                 $p['hand_count'] = count($p['hand']);
                 unset($p['hand']);
+                if (isset($p['excess_cards_returned'])) {
+                    unset($p['excess_cards_returned']);
+                }
             }
         }
         unset($p);

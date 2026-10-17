@@ -5,6 +5,9 @@ let currentPlayerData = JSON.parse(localStorage.getItem('md_player_data') || 'nu
 let currentGameState = null;
 let pollTimer = null;
 let signalTimer = null;
+let selectedPaymentCardIds = new Set();
+let isSubmittingPayment = false;
+let isAutoEndingTurn = false;
 
 // WebRTC Voice Chat State
 let localStream = null;
@@ -141,6 +144,11 @@ function showLobby() {
   document.getElementById('btn-toggle-mic')?.classList.add('hidden');
   document.getElementById('btn-end-turn')?.classList.add('hidden');
   document.getElementById('btn-leave-game')?.classList.add('hidden');
+  closeExcessCardsModal();
+  closePaymentModal();
+  closeModal();
+  closeInspectModal();
+  lastSeenExcessNotifTimestamp = 0;
 }
 
 /* ========================================================
@@ -162,24 +170,10 @@ function setupGameEvents() {
 
   document.getElementById('btn-end-turn').addEventListener('click', async () => {
     try {
-      const myPlayer = currentGameState.players[currentPlayerData.id];
-      let discardIds = [];
-
-      if (myPlayer && myPlayer.hand && myPlayer.hand.length > 7) {
-        const excess = myPlayer.hand.length - 7;
-        const selected = prompt(`You have ${myPlayer.hand.length} cards. Choose ${excess} card index(es) to discard (0-based, comma separated, e.g. 0,1):`);
-        if (!selected) return;
-        const indices = selected.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-        if (indices.length !== excess) {
-          return alert(`Please select exactly ${excess} card(s).`);
-        }
-        discardIds = indices.map(idx => myPlayer.hand[idx]?.id).filter(Boolean);
-      }
-
       const res = await apiRequest('end_turn', 'POST', {
         game_id: currentGameId,
         player_id: currentPlayerData.id,
-        discard_ids: discardIds
+        discard_ids: []
       });
       currentGameState = res.state;
       render();
@@ -213,6 +207,11 @@ function setupGameEvents() {
   const inspectCloseX = document.getElementById('inspect-close-x');
   if (inspectCloseX) inspectCloseX.addEventListener('click', closeInspectModal);
 
+  const excessCloseBtn = document.getElementById('excess-cards-confirm-btn');
+  if (excessCloseBtn) excessCloseBtn.addEventListener('click', closeExcessCardsModal);
+  const excessCloseX = document.getElementById('excess-close-x');
+  if (excessCloseX) excessCloseX.addEventListener('click', closeExcessCardsModal);
+
   // Close modals on clicking backdrop
   const actionModal = document.getElementById('action-modal');
   if (actionModal) {
@@ -226,12 +225,19 @@ function setupGameEvents() {
       if (e.target.id === 'inspect-modal') closeInspectModal();
     });
   }
+  const excessModal = document.getElementById('excess-cards-modal');
+  if (excessModal) {
+    excessModal.addEventListener('click', (e) => {
+      if (e.target.id === 'excess-cards-modal') closeExcessCardsModal();
+    });
+  }
 
   // Escape key closes modals
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeModal();
       closeInspectModal();
+      closeExcessCardsModal();
     }
   });
 
@@ -242,6 +248,29 @@ function setupGameEvents() {
       document.getElementById('sidebar-logs')?.classList.toggle('is-collapsed');
     });
   }
+
+  // Auto-leave when user closes tab or navigates away
+  function sendLeaveOnUnload() {
+    if (currentGameId && currentPlayerData?.id) {
+      const payload = JSON.stringify({
+        game_id: currentGameId,
+        player_id: currentPlayerData.id
+      });
+      const url = `api.php?action=leave&game_id=${encodeURIComponent(currentGameId)}&player_id=${encodeURIComponent(currentPlayerData.id)}`;
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, payload);
+      } else {
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true
+        });
+      }
+    }
+  }
+  window.addEventListener('beforeunload', sendLeaveOnUnload);
+  window.addEventListener('pagehide', sendLeaveOnUnload);
 }
 
 function startPolling() {
@@ -312,16 +341,82 @@ function render() {
   const myPlayer = currentGameState.players[myId];
   const isMyTurn = currentGameState.turn.active_player_id === myId;
   const activePlayer = currentGameState.players[currentGameState.turn.active_player_id];
+  const pending = currentGameState.pending_payment;
 
-  // Turn status badge
+  // Check pending payment modal
+  if (pending && myPlayer) {
+    const myPayer = pending.payers?.[myId];
+    if (myPayer && !myPayer.paid) {
+      renderPaymentModal(pending, myPlayer);
+    } else {
+      closePaymentModal();
+    }
+  } else {
+    closePaymentModal();
+  }
+
+  // Check excess cards notification modal (for this player only)
+  checkExcessCardsNotification(myPlayer);
+
+  // Turn status badge & End Turn button
   const turnBadge = document.getElementById('turn-badge');
-  turnBadge.textContent = isMyTurn ? "Your Turn!" : `${activePlayer ? activePlayer.name : 'Unknown'}'s Turn`;
-  turnBadge.className = `badge ${isMyTurn ? 'badge-turn' : 'badge-actions'}`;
-
-  // Actions remaining
   const actionsBadge = document.getElementById('actions-badge');
-  actionsBadge.textContent = `${currentGameState.turn.actions_left} Actions Left`;
-  document.getElementById('btn-end-turn').disabled = !isMyTurn || isFinished;
+  const btnEndTurn = document.getElementById('btn-end-turn');
+
+  if (pending) {
+    const unpaid = Object.values(pending.payers || {}).filter(p => !p.paid).map(p => p.name);
+    if (unpaid.length > 0) {
+      turnBadge.textContent = "⏳ Awaiting Payment";
+      turnBadge.className = "badge badge-actions";
+      actionsBadge.textContent = `${unpaid.join(', ')} paying ${pending.reason}`;
+      if (btnEndTurn) {
+        btnEndTurn.disabled = true;
+        btnEndTurn.textContent = 'End Turn';
+      }
+    } else {
+      turnBadge.textContent = isMyTurn ? "Your Turn!" : `${activePlayer ? activePlayer.name : 'Unknown'}'s Turn`;
+      turnBadge.className = `badge ${isMyTurn ? 'badge-turn' : 'badge-actions'}`;
+      actionsBadge.textContent = `${currentGameState.turn.actions_left} Actions Left`;
+      if (btnEndTurn) {
+        btnEndTurn.disabled = !isMyTurn || isFinished;
+        btnEndTurn.textContent = 'End Turn';
+      }
+    }
+  } else {
+    turnBadge.textContent = isMyTurn ? "Your Turn!" : `${activePlayer ? activePlayer.name : 'Unknown'}'s Turn`;
+    turnBadge.className = `badge ${isMyTurn ? 'badge-turn' : 'badge-actions'}`;
+    actionsBadge.textContent = `${currentGameState.turn.actions_left} Actions Left`;
+
+    if (btnEndTurn) {
+      if (isMyTurn && !isFinished) {
+        btnEndTurn.disabled = false;
+        btnEndTurn.textContent = 'End Turn';
+      } else {
+        btnEndTurn.disabled = true;
+        btnEndTurn.textContent = 'End Turn';
+      }
+    }
+
+    // Auto-end turn safeguard: If all 3 actions used and no pending payments
+    if (isMyTurn && isPlaying && currentGameState.turn.actions_left <= 0 && !isAutoEndingTurn) {
+      isAutoEndingTurn = true;
+      (async () => {
+        try {
+          const res = await apiRequest('end_turn', 'POST', {
+            game_id: currentGameId,
+            player_id: myId,
+            discard_ids: []
+          });
+          currentGameState = res.state;
+          render();
+        } catch (err) {
+          console.warn('Auto end turn safeguard error:', err);
+        } finally {
+          isAutoEndingTurn = false;
+        }
+      })();
+    }
+  }
 
   // Deck & Discard Table Display
   const deckCount = currentGameState.deck_count ?? 0;
@@ -489,8 +584,9 @@ function renderMyTable(myPlayer) {
   handContainer.innerHTML = '';
 
   (myPlayer.hand || []).forEach(card => {
-    const cardEl = createCardElement(card, isMyTurn);
-    if (isMyTurn && currentGameState.turn.actions_left > 0) {
+    const canPlay = isMyTurn && currentGameState.turn.actions_left > 0 && !currentGameState.pending_payment;
+    const cardEl = createCardElement(card, canPlay);
+    if (canPlay) {
       cardEl.classList.add('is-turn-playable');
       cardEl.addEventListener('click', () => openCardModal(card));
     } else {
@@ -1076,6 +1172,10 @@ function renderLogs(logs) {
    CARD ACTIONS MODAL
 ======================================================== */
 function openCardModal(card) {
+  if (currentGameState?.pending_payment) {
+    alert("Please resolve the pending payment before taking an action.");
+    return;
+  }
   const modal = document.getElementById('action-modal');
   const title = document.getElementById('modal-card-title');
   const actionsContainer = document.getElementById('modal-actions-container');
@@ -1498,6 +1598,13 @@ function openCardModal(card) {
         });
         actSection.appendChild(wildRentBtn);
       }
+    } else if (card.action === 'just_say_no') {
+      const hint = document.createElement('div');
+      hint.className = 'empty-state-text';
+      hint.style.fontSize = '0.82rem';
+      hint.style.lineHeight = '1.35';
+      hint.textContent = '💡 Just Say No is played as a reaction when an opponent targets you or demands payment! (You can also deposit it into your bank for $4M above).';
+      actSection.appendChild(hint);
     } else {
       const genericBtn = document.createElement('button');
       genericBtn.className = 'btn-action';
@@ -1530,6 +1637,325 @@ async function executePlay(cardId, targetType, params = {}) {
     render();
   } catch (err) {
     alert(err.message);
+  }
+}
+
+/* ========================================================
+   PAYMENT MODAL (DEBT COLLECTOR / RENT / BIRTHDAY)
+======================================================== */
+function closePaymentModal() {
+  const modal = document.getElementById('payment-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderPaymentModal(pending, myPlayer) {
+  const modal = document.getElementById('payment-modal');
+  const body = document.getElementById('payment-modal-body');
+  if (!modal || !body) return;
+
+  const myPayerInfo = pending.payers?.[myPlayer.id];
+  if (!myPayerInfo || myPayerInfo.paid) {
+    closePaymentModal();
+    return;
+  }
+
+  const amountDue = myPayerInfo.amount_due;
+
+  // Gather all table cards for local player
+  const bankCards = myPlayer.bank || [];
+  const propertyCards = [];
+  Object.entries(myPlayer.property_sets || {}).forEach(([color, cards]) => {
+    (cards || []).forEach(c => {
+      propertyCards.push({ color, card: c });
+    });
+  });
+
+  const totalTableCards = bankCards.length + propertyCards.length;
+  const bankTotal = bankCards.reduce((acc, c) => acc + (c.value || 0), 0);
+  const propTotal = propertyCards.reduce((acc, item) => acc + (item.card.value || 0), 0);
+  const totalTableValue = bankTotal + propTotal;
+
+  // Prune any selected IDs that no longer exist on table
+  const existingIds = new Set([
+    ...bankCards.map(c => c.id),
+    ...propertyCards.map(item => item.card.id)
+  ]);
+  for (const id of selectedPaymentCardIds) {
+    if (!existingIds.has(id)) {
+      selectedPaymentCardIds.delete(id);
+    }
+  }
+
+  // If player cannot cover full amount and has cards, auto-select all if none selected yet
+  if (totalTableValue <= amountDue && totalTableValue > 0 && selectedPaymentCardIds.size === 0) {
+    existingIds.forEach(id => selectedPaymentCardIds.add(id));
+  }
+
+  // Calculate selected total
+  let selectedTotal = 0;
+  bankCards.forEach(c => {
+    if (selectedPaymentCardIds.has(c.id)) selectedTotal += (c.value || 0);
+  });
+  propertyCards.forEach(item => {
+    if (selectedPaymentCardIds.has(item.card.id)) selectedTotal += (item.card.value || 0);
+  });
+
+  // Check validity
+  let isValid = false;
+  let guideText = '';
+  let payBtnText = '';
+
+  if (totalTableValue === 0) {
+    isValid = (selectedPaymentCardIds.size === 0);
+    guideText = 'You have no cards in play on your table. In Monopoly Deal rules, you do not pay from your hand, so you pay $0.';
+    payBtnText = 'Clear Debt ($0 - No Assets)';
+  } else if (totalTableValue <= amountDue) {
+    isValid = (selectedPaymentCardIds.size === totalTableCards);
+    guideText = `You cannot cover the full $${amountDue}M debt. You must surrender all cards on your table ($${totalTableValue}M).`;
+    payBtnText = `Surrender All Cards ($${totalTableValue}M)`;
+  } else {
+    isValid = (selectedTotal >= amountDue);
+    guideText = `Select cards from your Bank or Properties totaling at least $${amountDue}M. (No change is given for overpayment).`;
+    payBtnText = `Pay Selected Cards ($${selectedTotal}M / $${amountDue}M)`;
+  }
+
+  const hasJustSayNo = (myPlayer.hand || []).some(c => c.action === 'just_say_no');
+
+  // Render HTML
+  body.innerHTML = `
+    <div class="payment-alert-box">
+      <div class="payment-alert-title">
+        <span>🚨</span>
+        <span>Payment Demanded!</span>
+      </div>
+      <div class="payment-alert-desc">
+        <strong>${escapeHtml(pending.collector_name)}</strong> demands <strong>$${amountDue}M</strong> via <strong>${escapeHtml(pending.reason)}</strong>.
+      </div>
+    </div>
+
+    <div class="payment-stats-grid">
+      <div class="payment-stat-card">
+        <div class="payment-stat-label">Amount Due</div>
+        <div class="payment-stat-value">$${amountDue}M</div>
+      </div>
+      <div class="payment-stat-card">
+        <div class="payment-stat-label">Selected</div>
+        <div class="payment-stat-value ${isValid ? 'is-valid' : 'is-invalid'}">$${selectedTotal}M</div>
+      </div>
+      <div class="payment-stat-card">
+        <div class="payment-stat-label">On Table</div>
+        <div class="payment-stat-value">$${totalTableValue}M</div>
+      </div>
+    </div>
+
+    <div class="payment-guide-text">${guideText}</div>
+
+    ${bankCards.length > 0 ? `
+      <div class="payment-section">
+        <div class="payment-section-heading">
+          <span>Bank Cards</span>
+          <span>$${bankTotal}M Available</span>
+        </div>
+        <div class="payment-cards-grid" id="payment-bank-grid"></div>
+      </div>
+    ` : ''}
+
+    ${propertyCards.length > 0 ? `
+      <div class="payment-section">
+        <div class="payment-section-heading">
+          <span>Properties on Table</span>
+          <span>$${propTotal}M Available</span>
+        </div>
+        <div class="payment-cards-grid" id="payment-prop-grid"></div>
+      </div>
+    ` : ''}
+
+    <div class="payment-btn-group">
+      ${hasJustSayNo ? `
+        <button id="btn-payment-say-no" class="btn-say-no" ${isSubmittingPayment ? 'disabled' : ''}>
+          🛑 Just Say No! (Cancel Debt)
+        </button>
+      ` : ''}
+      <button id="btn-payment-submit" class="btn-primary" ${(!isValid || isSubmittingPayment) ? 'disabled' : ''}>
+        ${isSubmittingPayment ? 'Processing...' : payBtnText}
+      </button>
+    </div>
+  `;
+
+  // Populate bank cards
+  const bankGrid = document.getElementById('payment-bank-grid');
+  if (bankGrid) {
+    bankCards.forEach(c => {
+      const isSelected = selectedPaymentCardIds.has(c.id);
+      const cardEl = document.createElement('div');
+      cardEl.className = `payment-selectable-card ${isSelected ? 'is-selected' : ''}`;
+      cardEl.innerHTML = `
+        <div class="payment-card-badge">
+          <span class="payment-card-val">$${c.value || 0}M</span>
+          <div class="payment-checkbox">${isSelected ? '✓' : ''}</div>
+        </div>
+        <div class="payment-card-name">${escapeHtml(c.name)}</div>
+      `;
+      cardEl.addEventListener('click', () => {
+        if (selectedPaymentCardIds.has(c.id)) {
+          selectedPaymentCardIds.delete(c.id);
+        } else {
+          selectedPaymentCardIds.add(c.id);
+        }
+        renderPaymentModal(pending, myPlayer);
+      });
+      bankGrid.appendChild(cardEl);
+    });
+  }
+
+  // Populate property cards
+  const propGrid = document.getElementById('payment-prop-grid');
+  if (propGrid) {
+    propertyCards.forEach(item => {
+      const c = item.card;
+      const color = item.color;
+      const isSelected = selectedPaymentCardIds.has(c.id);
+      const colorHex = COLOR_HEX[color] || '#333';
+      const cardEl = document.createElement('div');
+      cardEl.className = `payment-selectable-card ${isSelected ? 'is-selected' : ''}`;
+      cardEl.innerHTML = `
+        <div class="payment-card-badge">
+          <span class="payment-card-val">$${c.value || 0}M</span>
+          <div class="payment-checkbox">${isSelected ? '✓' : ''}</div>
+        </div>
+        <div class="payment-card-name">${escapeHtml(c.name)}</div>
+        <div class="payment-card-color-stripe" style="background: ${colorHex};"></div>
+      `;
+      cardEl.addEventListener('click', () => {
+        if (selectedPaymentCardIds.has(c.id)) {
+          selectedPaymentCardIds.delete(c.id);
+        } else {
+          selectedPaymentCardIds.add(c.id);
+        }
+        renderPaymentModal(pending, myPlayer);
+      });
+      propGrid.appendChild(cardEl);
+    });
+  }
+
+  // Hook up Submit Payment button
+  const submitBtn = document.getElementById('btn-payment-submit');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', async () => {
+      if (!isValid || isSubmittingPayment) return;
+      isSubmittingPayment = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting Payment...';
+      try {
+        const res = await apiRequest('pay', 'POST', {
+          game_id: currentGameId,
+          player_id: myPlayer.id,
+          card_ids: Array.from(selectedPaymentCardIds),
+        });
+        currentGameState = res.state;
+        selectedPaymentCardIds.clear();
+        closePaymentModal();
+        render();
+      } catch (err) {
+        alert(err.message || 'Payment failed.');
+      } finally {
+        isSubmittingPayment = false;
+      }
+    });
+  }
+
+  // Hook up Just Say No button
+  const sayNoBtn = document.getElementById('btn-payment-say-no');
+  if (sayNoBtn) {
+    sayNoBtn.addEventListener('click', async () => {
+      if (isSubmittingPayment) return;
+      if (!confirm(`Play Just Say No to cancel the payment to ${pending.collector_name}?`)) return;
+      isSubmittingPayment = true;
+      sayNoBtn.disabled = true;
+      sayNoBtn.textContent = 'Playing Just Say No...';
+      try {
+        const res = await apiRequest('say_no', 'POST', {
+          game_id: currentGameId,
+          player_id: myPlayer.id,
+        });
+        currentGameState = res.state;
+        selectedPaymentCardIds.clear();
+        closePaymentModal();
+        render();
+      } catch (err) {
+        alert(err.message || 'Failed to play Just Say No.');
+      } finally {
+        isSubmittingPayment = false;
+      }
+    });
+  }
+
+  modal.classList.remove('hidden');
+}
+
+/* ========================================================
+   EXCESS CARDS NOTIFICATION MODAL
+======================================================== */
+let lastSeenExcessNotifTimestamp = 0;
+
+function closeExcessCardsModal() {
+  const modal = document.getElementById('excess-cards-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function showExcessCardsModal(notif) {
+  const modal = document.getElementById('excess-cards-modal');
+  const desc = document.getElementById('excess-cards-desc');
+  const list = document.getElementById('excess-cards-list');
+  if (!modal || !desc || !list) return;
+
+  desc.innerHTML = `You had <strong>${notif.initial_count} cards</strong> in hand when your turn ended (limit is 7). <strong>${notif.count} card(s)</strong> were randomly selected and returned to the draw deck:`;
+  list.innerHTML = '';
+
+  (notif.cards || []).forEach(card => {
+    const item = document.createElement('div');
+    item.className = 'excess-card-item';
+
+    const header = document.createElement('div');
+    header.className = 'excess-card-header';
+
+    const valBadge = document.createElement('span');
+    valBadge.className = 'excess-card-val';
+    valBadge.textContent = `$${card.value || 0}M`;
+
+    const typeTag = document.createElement('span');
+    typeTag.className = 'excess-card-type-tag';
+    typeTag.textContent = (card.type || '').replace('_', ' ');
+
+    header.appendChild(valBadge);
+    header.appendChild(typeTag);
+    item.appendChild(header);
+
+    const name = document.createElement('div');
+    name.className = 'excess-card-name';
+    name.textContent = card.name || 'Unknown Card';
+    item.appendChild(name);
+
+    if (card.color || (card.colors && card.colors.length > 0)) {
+      const color = card.color || card.colors[0];
+      const stripe = document.createElement('div');
+      stripe.className = 'excess-card-color-stripe';
+      stripe.style.background = `var(--color-${color}, #cbd5e1)`;
+      item.appendChild(stripe);
+    }
+
+    list.appendChild(item);
+  });
+
+  modal.classList.remove('hidden');
+}
+
+function checkExcessCardsNotification(myPlayer) {
+  if (!myPlayer || !myPlayer.excess_cards_returned) return;
+  const notif = myPlayer.excess_cards_returned;
+  if (notif.timestamp && notif.timestamp !== lastSeenExcessNotifTimestamp) {
+    lastSeenExcessNotifTimestamp = notif.timestamp;
+    showExcessCardsModal(notif);
   }
 }
 

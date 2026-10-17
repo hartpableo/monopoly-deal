@@ -54,7 +54,7 @@ header {
   background: #ffffff;
   border-bottom: 3.5px solid var(--ink);
   box-shadow: 0 4px 0px var(--ink);
-  padding: 12px 24px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) calc(24px + env(safe-area-inset-right, 0px)) 12px calc(24px + env(safe-area-inset-left, 0px));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -141,6 +141,8 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:hover:not(:disabled) {
@@ -179,6 +181,14 @@ button:disabled {
 }
 .btn-danger:hover:not(:disabled) {
   background: #ee3849;
+}
+
+.btn-success {
+  background: var(--success);
+  color: #ffffff;
+}
+.btn-success:hover:not(:disabled) {
+  background: #059669;
 }
 
 .btn-start {
@@ -246,7 +256,7 @@ button:disabled {
 ======================================================== */
 main {
   flex: 1;
-  padding: 20px 24px;
+  padding: 20px calc(24px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(24px + env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -368,6 +378,58 @@ main {
   border: 2px dashed #94a3b8;
   border-radius: 6px;
   text-align: center;
+}
+
+.lobby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.join-box {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.join-box input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 16px; /* prevent iOS auto-zoom */
+  border-radius: 6px;
+  border: 2.5px solid var(--ink);
+  background: #ffffff;
+  color: var(--ink);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  box-shadow: 2.5px 2.5px 0px var(--ink);
+}
+
+.join-box input:focus {
+  outline: none;
+  background: #fffde7;
+  box-shadow: 4px 4px 0px var(--ink);
+}
+
+.join-box button {
+  flex-shrink: 0;
+}
+
+.room-code-display {
+  font-family: inherit;
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-align: center;
+  background: var(--accent-yellow);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  padding: 10px 16px;
+  box-shadow: 4px 4px 0px var(--ink);
+  margin: 6px 0;
+  user-select: all;
 }
 
 /* ========================================================
@@ -1693,6 +1755,347 @@ main {
 }
 
 /* ========================================================
+   PAYMENT MODAL (NEO-BRUTALIST BASE)
+======================================================== */
+.modal-payment-dialog {
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.payment-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.payment-alert-box {
+  background: #fef3c7;
+  border: 2.5px solid var(--ink);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: 3px 3px 0px var(--ink);
+}
+
+.payment-alert-title {
+  font-weight: 900;
+  font-size: 1.05rem;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.payment-alert-desc {
+  font-size: 0.9rem;
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.payment-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.payment-stat-card {
+  background: #f8fafc;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
+.payment-stat-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.payment-stat-value {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.payment-stat-value.is-valid {
+  color: #059669;
+}
+
+.payment-stat-value.is-invalid {
+  color: #dc2626;
+}
+
+.payment-guide-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: #f1f5f9;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  padding: 8px 10px;
+  line-height: 1.35;
+}
+
+.payment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-section-heading {
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.payment-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.payment-selectable-card {
+  background: #ffffff;
+  border: 2.5px solid var(--ink);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 2px 2px 0px var(--ink);
+  position: relative;
+  user-select: none;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.payment-selectable-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px var(--ink);
+}
+
+.payment-selectable-card.is-selected {
+  background: #ecfdf5;
+  border-color: #059669;
+  box-shadow: 3px 3px 0px #059669;
+  transform: translate(-1px, -1px);
+}
+
+.payment-card-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.payment-card-val {
+  background: #fde047;
+  border: 1.5px solid var(--ink);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 900;
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+.payment-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 0.75rem;
+  background: #ffffff;
+}
+
+.payment-selectable-card.is-selected .payment-checkbox {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+}
+
+.payment-card-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.payment-card-color-stripe {
+  height: 6px;
+  border-radius: 3px;
+  border: 1.5px solid var(--ink);
+  margin-top: 2px;
+}
+
+.payment-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-say-no {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 2.5px solid var(--ink);
+  box-shadow: 3px 3px 0px var(--ink);
+  font-weight: 900;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-say-no:hover {
+  background: #fca5a5;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px var(--ink);
+}
+
+.btn-say-no:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px var(--ink);
+}
+
+/* ========================================================
+   EXCESS CARDS NOTIFICATION MODAL (NEO-BRUTALIST BASE)
+======================================================== */
+.modal-excess-dialog {
+  max-width: 460px;
+}
+
+.excess-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.excess-alert-box {
+  background: #fef3c7;
+  border: 2.5px solid var(--ink);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: 3px 3px 0px var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.excess-alert-badge {
+  display: inline-block;
+  align-self: flex-start;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
+.excess-desc-text {
+  font-size: 0.90rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.excess-cards-section-title {
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.excess-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.excess-card-item {
+  background: #ffffff;
+  border: 2.5px solid var(--ink);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 2.5px 2.5px 0px var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.excess-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.excess-card-val {
+  background: #fde047;
+  border: 1.5px solid var(--ink);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 900;
+  font-size: 0.72rem;
+  color: var(--ink);
+}
+
+.excess-card-type-tag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.excess-card-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.excess-card-color-stripe {
+  height: 6px;
+  border-radius: 3px;
+  border: 1.5px solid var(--ink);
+  margin-top: 2px;
+}
+
+/* ========================================================
    SIDEBAR / GAME ACTIVITY LOG
 ======================================================== */
 .sidebar {
@@ -1704,6 +2107,36 @@ main {
   height: 100%;
   box-shadow: 5px 5px 0px var(--ink);
   overflow: hidden;
+}
+
+.sidebar-actions-section {
+  padding: 12px 14px;
+  background: #ffffff;
+  border-bottom: 3px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-actions-header {
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.btn-end-turn-sidebar {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 3px 3px 0px var(--ink);
+  letter-spacing: 0.03em;
 }
 
 .sidebar-header {
@@ -1778,8 +2211,22 @@ main {
 ======================================================== */
 html, body {
   overflow-x: hidden;
+  width: 100%;
   max-width: 100vw;
   -webkit-text-size-adjust: 100%;
+}
+
+button,
+.deal-card,
+.mini-property-item,
+.mini-bank-bill,
+.payment-selectable-card,
+.modal-close-x,
+.sidebar-header,
+.btn-move-wild,
+.btn-say-no {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hand-title-row {
@@ -1910,7 +2357,7 @@ html, body {
   header {
     flex-direction: column;
     align-items: stretch;
-    padding: 8px 12px;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 8px calc(12px + env(safe-area-inset-left, 0px));
     gap: 8px;
     box-shadow: 0 3px 0px var(--ink);
     border-bottom-width: 3px;
@@ -1982,7 +2429,7 @@ html, body {
 
   /* Main Container */
   main {
-    padding: 10px 12px 20px 12px;
+    padding: 10px calc(12px + env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px));
     gap: 12px;
   }
 
@@ -2621,15 +3068,103 @@ html, body {
   }
 
   .modal-actions button {
-    min-height: 40px;
-    font-size: 0.78rem;
-    padding: 8px 12px;
+    min-height: 44px;
+    font-size: 0.84rem;
+    padding: 10px 14px;
   }
 
   .modal-select {
-    min-height: 38px;
-    font-size: 0.82rem;
+    min-height: 44px;
+    font-size: 16px; /* prevent iOS auto-zoom */
     padding: 8px 10px;
+  }
+
+  /* Sidebar Actions on Mobile */
+  .sidebar-actions-section {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .btn-end-turn-sidebar {
+    min-height: 44px;
+    font-size: 0.9rem;
+    padding: 10px 14px;
+  }
+
+  /* Payment Modal on Mobile */
+  .modal-payment-dialog {
+    max-width: min(94vw, 440px);
+    max-height: calc(100dvh - 24px);
+    padding: 14px 12px;
+  }
+
+  .payment-alert-box {
+    padding: 10px 12px;
+  }
+
+  .payment-alert-title {
+    font-size: 0.95rem;
+  }
+
+  .payment-alert-desc {
+    font-size: 0.82rem;
+  }
+
+  .payment-stats-grid {
+    gap: 6px;
+  }
+
+  .payment-stat-card {
+    padding: 6px 4px;
+  }
+
+  .payment-stat-label {
+    font-size: 0.65rem;
+  }
+
+  .payment-stat-value {
+    font-size: 1.05rem;
+  }
+
+  .payment-guide-text {
+    font-size: 0.78rem;
+    padding: 6px 8px;
+  }
+
+  .payment-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    max-height: 180px;
+  }
+
+  .payment-selectable-card {
+    padding: 6px 8px;
+    min-height: 46px;
+  }
+
+  .payment-card-name {
+    font-size: 0.74rem;
+  }
+
+  .btn-say-no,
+  .payment-btn-group button {
+    min-height: 44px;
+  }
+
+  /* Excess Cards Modal on Mobile */
+  .modal-excess-dialog {
+    max-width: min(94vw, 420px);
+    padding: 14px 12px;
+  }
+
+  .excess-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    max-height: 180px;
+  }
+
+  .excess-desc-text {
+    font-size: 0.84rem;
   }
 }
 
@@ -2638,7 +3173,7 @@ html, body {
 ======================================================== */
 @media (max-width: 380px) {
   header {
-    padding: 6px 8px;
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 6px 6px 6px;
   }
 
   .logo {
@@ -2660,6 +3195,17 @@ html, body {
   .btn-leave {
     font-size: 0.66rem;
     padding: 3px 6px;
+  }
+
+  .room-code-display {
+    font-size: 1.4rem;
+    padding: 8px 10px;
+  }
+
+  .btn-end-turn-sidebar {
+    font-size: 0.82rem;
+    padding: 8px 10px;
+    min-height: 42px;
   }
 
   #my-properties-container {
@@ -2684,6 +3230,44 @@ html, body {
   .hand-cards .deal-card {
     width: 112px;
     height: 164px;
+  }
+
+  /* Compact Modals on Tiny Screens */
+  .modal-content {
+    max-width: calc(100vw - 16px);
+    padding: 10px;
+  }
+
+  .modal-payment-dialog {
+    max-width: calc(100vw - 16px);
+    padding: 10px 8px;
+  }
+
+  .modal-excess-dialog {
+    max-width: calc(100vw - 16px);
+    padding: 10px 8px;
+  }
+
+  .excess-cards-grid {
+    grid-template-columns: 1fr;
+    max-height: 160px;
+  }
+
+  .payment-stats-grid {
+    gap: 4px;
+  }
+
+  .payment-stat-label {
+    font-size: 0.58rem;
+  }
+
+  .payment-stat-value {
+    font-size: 0.92rem;
+  }
+
+  .payment-cards-grid {
+    grid-template-columns: 1fr;
+    max-height: 160px;
   }
 }
 

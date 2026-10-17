@@ -178,9 +178,69 @@ try {
             ]);
             break;
 
-        case 'leave':
+        case 'pay':
             $gameId = strtoupper(trim($input['game_id'] ?? ''));
             $playerId = trim($input['player_id'] ?? '');
+            $cardIds = (array)($input['card_ids'] ?? []);
+
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ? FOR UPDATE");
+            $stmt->execute([$gameId]);
+            $row = $stmt->fetch();
+
+            if (!$row) {
+                $pdo->rollBack();
+                throw new Exception("Game not found.");
+            }
+
+            $state = json_decode($row['state'], true);
+            GameEngine::resolvePayment($state, $playerId, $cardIds);
+
+            if ($state['status'] === 'finished') {
+                $delSig = $pdo->prepare("DELETE FROM signaling WHERE game_id = ?");
+                $delSig->execute([$gameId]);
+            }
+
+            $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
+            $update->execute([json_encode($state), $gameId]);
+            $pdo->commit();
+
+            echo json_encode([
+                'ok' => true,
+                'state' => GameEngine::sanitizeStateForPlayer($state, $playerId),
+            ]);
+            break;
+
+        case 'say_no':
+            $gameId = strtoupper(trim($input['game_id'] ?? ''));
+            $playerId = trim($input['player_id'] ?? '');
+
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ? FOR UPDATE");
+            $stmt->execute([$gameId]);
+            $row = $stmt->fetch();
+
+            if (!$row) {
+                $pdo->rollBack();
+                throw new Exception("Game not found.");
+            }
+
+            $state = json_decode($row['state'], true);
+            GameEngine::resolveJustSayNo($state, $playerId);
+
+            $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
+            $update->execute([json_encode($state), $gameId]);
+            $pdo->commit();
+
+            echo json_encode([
+                'ok' => true,
+                'state' => GameEngine::sanitizeStateForPlayer($state, $playerId),
+            ]);
+            break;
+
+        case 'leave':
+            $gameId = strtoupper(trim($input['game_id'] ?? $_GET['game_id'] ?? ''));
+            $playerId = trim($input['player_id'] ?? $_GET['player_id'] ?? '');
 
             $stmt = $pdo->prepare("SELECT state FROM games WHERE id = ?");
             $stmt->execute([$gameId]);
@@ -193,6 +253,22 @@ try {
                     $pdo->prepare("DELETE FROM games WHERE id = ?")->execute([$gameId]);
                     $pdo->prepare("DELETE FROM signaling WHERE game_id = ?")->execute([$gameId]);
                 } else {
+                    if (!empty($state['pending_payment'])) {
+                        if ($state['pending_payment']['collector_id'] === $playerId) {
+                            $state['discard'][] = $state['pending_payment']['action_card'];
+                            $state['pending_payment'] = null;
+                        } elseif (isset($state['pending_payment']['payers'][$playerId])) {
+                            unset($state['pending_payment']['payers'][$playerId]);
+                            $allDone = true;
+                            foreach ($state['pending_payment']['payers'] as $pInfo) {
+                                if (!$pInfo['paid']) { $allDone = false; break; }
+                            }
+                            if ($allDone || empty($state['pending_payment']['payers'])) {
+                                $state['discard'][] = $state['pending_payment']['action_card'];
+                                $state['pending_payment'] = null;
+                            }
+                        }
+                    }
                     unset($state['players'][$playerId]);
                     $state['turn_order'] = array_values(array_filter($state['turn_order'], fn($id) => $id !== $playerId));
                     if (empty($state['players'])) {
@@ -207,12 +283,23 @@ try {
             break;
 
         case 'state':
-            // Purge finished games older than 30s so no finished games or recordings persist in DB
+            // 1. Purge finished games older than 30s so finished games do not persist
             $pdo->query("DELETE FROM games WHERE JSON_UNQUOTE(JSON_EXTRACT(state, '$.status')) = 'finished' AND updated_at < NOW() - INTERVAL 30 SECOND");
-            $pdo->query("DELETE FROM signaling WHERE created_at < NOW() - INTERVAL 5 MINUTE");
+            // 2. Purge games with no more players/users in state
+            $pdo->query("DELETE FROM games WHERE JSON_LENGTH(JSON_EXTRACT(state, '$.players')) = 0 OR JSON_EXTRACT(state, '$.players') = '{}' OR JSON_EXTRACT(state, '$.players') = '[]' OR JSON_EXTRACT(state, '$.players') IS NULL");
+            // 3. Purge abandoned games where no users have been active/polling for > 2 minutes
+            $pdo->query("DELETE FROM games WHERE updated_at < NOW() - INTERVAL 2 MINUTE");
+            // 4. Purge orphaned or old signaling data
+            $pdo->query("DELETE FROM signaling WHERE game_id NOT IN (SELECT id FROM games) OR created_at < NOW() - INTERVAL 5 MINUTE");
 
             $gameId = strtoupper(trim($_GET['game_id'] ?? ''));
             $playerId = trim($_GET['player_id'] ?? '');
+
+            // Throttled heartbeat: keep game active in DB while users are polling (at most once every 15s)
+            if ($gameId) {
+                $touch = $pdo->prepare("UPDATE games SET updated_at = NOW() WHERE id = ? AND updated_at < NOW() - INTERVAL 15 SECOND");
+                $touch->execute([$gameId]);
+            }
 
             $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ?");
             $stmt->execute([$gameId]);

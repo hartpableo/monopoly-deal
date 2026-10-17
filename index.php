@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Monopoly Deal + Voice</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -26,7 +26,6 @@
       <span id="turn-badge" class="badge badge-turn hidden">Waiting...</span>
       <span id="actions-badge" class="badge badge-actions hidden">3 Actions Left</span>
       <button id="btn-toggle-mic" class="btn-mic btn-secondary hidden">🎤 Enable Voice</button>
-      <button id="btn-end-turn" class="btn-danger hidden">End Turn</button>
       <button id="btn-leave-game" class="btn-secondary btn-leave hidden">Leave</button>
     </div>
   </header>
@@ -140,6 +139,10 @@
 
       <!-- Live Event Logs Sidebar -->
       <aside class="sidebar" id="sidebar-logs">
+        <div class="sidebar-actions-section" id="sidebar-actions-section">
+          <div class="sidebar-actions-header">⚡ Game Actions</div>
+          <button id="btn-end-turn" class="btn-danger btn-end-turn-sidebar hidden">End Turn</button>
+        </div>
         <div class="sidebar-header" id="sidebar-logs-header">
           <span>Game Activity Log</span>
           <span class="sidebar-chevron">▼</span>
@@ -163,6 +166,16 @@
     </div>
   </div>
 
+  <!-- PAYMENT MODAL -->
+  <div id="payment-modal" class="modal-overlay hidden">
+    <div class="modal-content modal-payment-dialog">
+      <div class="modal-header-row">
+        <h3 id="payment-modal-title">💰 Payment Demanded</h3>
+      </div>
+      <div id="payment-modal-body" class="payment-modal-body"></div>
+    </div>
+  </div>
+
   <!-- INSPECT MODAL -->
   <div id="inspect-modal" class="modal-overlay hidden">
     <div class="modal-content modal-card-dialog">
@@ -172,6 +185,25 @@
       </div>
       <div id="inspect-card-preview" class="modal-card-preview"></div>
       <button id="inspect-close-btn" class="btn-secondary" style="margin-top: 8px;">Close</button>
+    </div>
+  </div>
+
+  <!-- EXCESS CARDS NOTIFICATION MODAL -->
+  <div id="excess-cards-modal" class="modal-overlay hidden">
+    <div class="modal-content modal-excess-dialog">
+      <div class="modal-header-row">
+        <h3 id="excess-cards-title">⚠️ Hand Limit Exceeded</h3>
+        <button id="excess-close-x" class="modal-close-x" aria-label="Close">✕</button>
+      </div>
+      <div class="excess-modal-body">
+        <div class="excess-alert-box">
+          <div class="excess-alert-badge">7-Card Limit Enforced</div>
+          <p id="excess-cards-desc" class="excess-desc-text"></p>
+        </div>
+        <div class="excess-cards-section-title">Cards Returned to Draw Deck:</div>
+        <div id="excess-cards-list" class="excess-cards-grid"></div>
+        <button id="excess-cards-confirm-btn" class="btn-primary" style="width: 100%; margin-top: 8px;">Got It</button>
+      </div>
     </div>
   </div>
 
