@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800;900&display=swap');
-
 :root {
   --bg-color: #faf6ee;
   --panel-bg: #ffffff;
@@ -884,78 +882,187 @@ main {
 /* Corner Value Badges ($XM) */
 .card-val-badge {
   position: absolute;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: var(--accent-yellow);
   color: var(--ink);
-  font-size: 0.65rem;
-  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 2px solid var(--ink);
   box-shadow: 1.5px 1.5px 0px var(--ink);
   z-index: 5;
+  box-sizing: border-box;
   line-height: 1;
+  text-align: center;
+  padding: 0;
 }
 
 .card-val-badge.val-tl {
-  top: 4px;
-  left: 4px;
+  top: 3px;
+  left: 3px;
 }
 
 .card-val-badge.val-br {
-  bottom: 4px;
-  right: 4px;
+  bottom: 3px;
+  right: 3px;
+}
+
+.card-val-badge .val-curr {
+  font-size: 0.52rem;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0.9;
+  margin-right: -0.5px;
+}
+
+.card-val-badge .val-num {
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.card-val-badge .val-unit {
+  font-size: 0.48rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-left: -0.5px;
+}
+
+.card-val-badge.val-10 .val-curr {
+  font-size: 0.44rem;
+}
+
+.card-val-badge.val-10 .val-num {
+  font-size: 0.62rem;
+  letter-spacing: -0.04em;
+}
+
+.card-val-badge.val-10 .val-unit {
+  font-size: 0.42rem;
 }
 
 .card-preview .card-val-badge {
-  width: 32px;
-  height: 32px;
-  font-size: 0.82rem;
+  width: 38px;
+  height: 38px;
   border-width: 2.5px;
   box-shadow: 2px 2px 0px var(--ink);
 }
 
+.card-preview .card-val-badge.val-tl {
+  top: 4px;
+  left: 4px;
+}
+
+.card-preview .card-val-badge.val-br {
+  bottom: 4px;
+  right: 4px;
+}
+
+.card-preview .card-val-badge .val-curr {
+  font-size: 0.68rem;
+}
+
+.card-preview .card-val-badge .val-num {
+  font-size: 0.96rem;
+}
+
+.card-preview .card-val-badge .val-unit {
+  font-size: 0.64rem;
+}
+
+.card-preview .card-val-badge.val-10 .val-curr {
+  font-size: 0.58rem;
+}
+
+.card-preview .card-val-badge.val-10 .val-num {
+  font-size: 0.84rem;
+  letter-spacing: -0.03em;
+}
+
+.card-preview .card-val-badge.val-10 .val-unit {
+  font-size: 0.56rem;
+}
+
 /* --- Card Header Bar --- */
 .card-header-bar {
-  padding: 4px 6px 4px 28px; /* space for top-left badge */
+  padding: 3px 4px 3px 32px; /* space for top-left badge */
   color: #ffffff;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 30px;
+  justify-content: center;
+  min-height: 35px;
   border-bottom: 2px solid var(--ink);
   box-sizing: border-box;
+  text-align: center;
+  position: relative;
 }
 
 .card-preview .card-header-bar {
-  padding-left: 36px;
-  min-height: 38px;
+  padding: 5px 8px 5px 43px;
+  min-height: 44px;
 }
 
 .card-header-title {
-  font-size: 0.68rem;
+  font-size: 0.60rem;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+  white-space: normal;
+  line-height: 1.15;
+  overflow: visible;
+  text-overflow: clip;
   flex: 1;
   text-align: center;
+  word-break: normal;
+  overflow-wrap: normal;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-preview .card-header-title {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.rent-main-title {
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.rent-sub-title {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  margin-top: 1.5px;
+  opacity: 0.95;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.card-preview .rent-main-title {
+  font-size: 0.86rem;
+}
+
+.card-preview .rent-sub-title {
+  font-size: 0.64rem;
+  margin-top: 2px;
 }
 
 .card-header-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 4px;
+  margin-left: 3px;
+  flex-shrink: 0;
 }
 
 /* --- Property Card Rent Table --- */
@@ -1017,26 +1124,49 @@ main {
 }
 
 .card-house-note {
-  font-size: 0.52rem;
+  font-size: 0.50rem;
   color: var(--text-muted);
   text-align: center;
-  margin: 0 4px 20px 4px; /* leave space for bottom badge */
+  margin: 2px 0 1px 0;
   line-height: 1.1;
-  font-weight: 700;
+  font-weight: 800;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 2px;
 }
 
 /* --- Action Cards --- */
 .action-art-container {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: 2px 4px;
+  gap: 2px;
+}
+
+.action-type-pill {
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  background: #dc2626;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--ink);
+  box-shadow: 1px 1px 0px var(--ink);
+  text-transform: uppercase;
+}
+
+.card-preview .action-type-pill {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  margin-bottom: 3px;
 }
 
 .action-art-svg {
-  width: 54px;
-  height: 54px;
+  width: 52px;
+  height: 52px;
   filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.4));
 }
 
@@ -1046,8 +1176,8 @@ main {
 }
 
 .action-art-img {
-  width: 76px;
-  height: 76px;
+  width: 72px;
+  height: 72px;
   object-fit: contain;
   border-radius: 6px;
   border: 1.5px solid var(--ink);
@@ -1056,34 +1186,20 @@ main {
 }
 
 .card-preview .action-art-img {
-  width: 104px;
-  height: 104px;
-}
-
-.banknote-tycoon-img {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--ink);
-  margin-bottom: 2px;
-}
-
-.card-preview .banknote-tycoon-img {
-  width: 38px;
-  height: 38px;
+  width: 100px;
+  height: 100px;
 }
 
 .action-rule-box {
   background: #f1f5f9;
   border-top: 2px solid var(--ink);
-  padding: 5px 6px 18px 6px; /* space for bottom-right badge */
+  padding: 5px 26px 5px 6px; /* space for bottom-right badge */
   text-align: center;
   font-size: 0.58rem;
   line-height: 1.18;
   color: var(--ink);
   font-weight: 700;
-  min-height: 48px;
+  min-height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1091,16 +1207,18 @@ main {
 
 .card-preview .action-rule-box {
   font-size: 0.72rem;
-  padding-bottom: 24px;
+  padding: 6px 36px 6px 8px;
+  min-height: 58px;
 }
 
 /* --- Wild Property Cards --- */
 .wild-split-header {
-  min-height: 30px;
+  min-height: 35px;
   display: flex;
   border-bottom: 2px solid var(--ink);
   position: relative;
-  padding-left: 26px;
+  padding-left: 31px;
+  box-sizing: border-box;
 }
 
 .wild-split-col {
@@ -1108,10 +1226,22 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   font-weight: 900;
   text-transform: uppercase;
+  text-align: center;
+  padding: 2px 4px;
+  line-height: 1.15;
+  box-sizing: border-box;
+}
+
+.card-preview .wild-split-header {
+  min-height: 44px;
+  padding-left: 43px;
+}
+
+.card-preview .wild-split-col {
+  font-size: 0.72rem;
 }
 
 .wild-dual-body {
@@ -1120,14 +1250,41 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 3px;
+  padding: 4px 6px;
+}
+
+.wild-card-title {
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ink);
+  letter-spacing: 0.03em;
 }
 
 .wild-swap-icon {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   color: var(--ink);
   font-weight: 900;
+  line-height: 1;
+}
+
+.wild-card-subtitle {
+  font-size: 0.55rem;
+  color: #64748b;
+  text-align: center;
+  font-weight: 700;
+}
+
+.wild-active-badge {
+  margin-top: 2px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  border: 1.5px solid var(--ink);
+  font-size: 0.55rem;
+  font-weight: 800;
 }
 
 .wild-rainbow-wheel {
@@ -1143,8 +1300,8 @@ main {
 }
 
 .wild-wheel-center {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #ffffff;
   border: 2px solid var(--ink);
@@ -1152,7 +1309,8 @@ main {
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  font-size: 0.6rem;
+  font-size: 0.52rem;
+  letter-spacing: -0.02em;
 }
 
 /* --- Money Cards (Authentic Neo-Brutalist Banknotes) --- */
@@ -1170,7 +1328,7 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 6px;
+  padding: 6px 4px;
   box-sizing: border-box;
   position: relative;
 }
@@ -1206,16 +1364,24 @@ main {
 }
 
 .banknote-top-header {
-  font-size: 0.58rem;
+  font-size: 0.54rem;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink);
+  margin-top: 10px;
+  z-index: 2;
+  text-align: center;
+}
+
+.card-preview .banknote-top-header {
+  font-size: 0.72rem;
+  margin-top: 14px;
 }
 
 .banknote-center-oval {
-  width: 86px;
-  height: 60px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
   border: 2.5px solid var(--ink);
   display: flex;
@@ -1224,54 +1390,122 @@ main {
   justify-content: center;
   background: #ffffff;
   box-shadow: 2px 2px 0px var(--ink);
+  box-sizing: border-box;
+  padding: 4px;
 }
 
 .card-preview .banknote-center-oval {
-  width: 110px;
-  height: 78px;
+  width: 122px;
+  height: 122px;
+  border-width: 3px;
+  box-shadow: 3px 3px 0px var(--ink);
+}
+
+.banknote-tycoon-img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--ink);
+  margin-bottom: 2px;
+}
+
+.card-preview .banknote-tycoon-img {
+  width: 38px;
+  height: 38px;
+  border-width: 2px;
+  margin-bottom: 4px;
 }
 
 .banknote-amount {
-  font-size: 1.35rem;
-  font-weight: 900;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
   line-height: 1;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
-  letter-spacing: -0.02em;
   color: var(--ink);
 }
 
-.card-preview .banknote-amount {
-  font-size: 1.8rem;
+.banknote-amount .bn-curr {
+  font-size: 0.82rem;
+  font-weight: 900;
+  margin-right: 0.5px;
+}
+
+.banknote-amount .bn-val {
+  font-size: 1.35rem;
+  font-weight: 900;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.banknote-amount .bn-unit {
+  font-size: 0.78rem;
+  font-weight: 900;
+  margin-left: 0.5px;
+}
+
+.card-preview .banknote-amount .bn-curr {
+  font-size: 1.1rem;
+}
+
+.card-preview .banknote-amount .bn-val {
+  font-size: 1.85rem;
+}
+
+.card-preview .banknote-amount .bn-unit {
+  font-size: 1.05rem;
 }
 
 .banknote-label {
-  font-size: 0.52rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-top: 2px;
-  color: var(--ink);
-}
-
-.banknote-bottom-banner {
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  margin-top: 1px;
   color: var(--ink);
+}
+
+.card-preview .banknote-label {
+  font-size: 0.65rem;
+  margin-top: 3px;
+}
+
+.banknote-bottom-banner {
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: 10px;
+  z-index: 2;
+  text-align: center;
+}
+
+.card-preview .banknote-bottom-banner {
+  font-size: 0.7rem;
+  margin-bottom: 14px;
 }
 
 .banknote-corner {
   position: absolute;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 900;
   font-family: 'Space Grotesk', system-ui, sans-serif;
   color: var(--ink);
+  line-height: 1;
 }
-.banknote-corner.c-tl { top: 4px; left: 6px; }
-.banknote-corner.c-tr { top: 4px; right: 6px; }
-.banknote-corner.c-bl { bottom: 4px; left: 6px; }
-.banknote-corner.c-br { bottom: 4px; right: 6px; }
+.banknote-corner.c-tl { top: 4px; left: 5px; }
+.banknote-corner.c-tr { top: 4px; right: 5px; }
+.banknote-corner.c-bl { bottom: 4px; left: 5px; }
+.banknote-corner.c-br { bottom: 4px; right: 5px; }
+
+.card-preview .banknote-corner {
+  font-size: 0.82rem;
+}
+.card-preview .banknote-corner.c-tl { top: 6px; left: 7px; }
+.card-preview .banknote-corner.c-tr { top: 6px; right: 7px; }
+.card-preview .banknote-corner.c-bl { bottom: 6px; left: 7px; }
+.card-preview .banknote-corner.c-br { bottom: 6px; right: 7px; }
 
 /* ========================================================
    TABLETOP MINI CARDS & BANKNOTES
@@ -1300,9 +1534,9 @@ main {
 }
 
 .mini-prop-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-height: 1.2;
   flex: 1;
 }
 

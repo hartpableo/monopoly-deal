@@ -710,6 +710,18 @@ function getPropertyHeaderIcon(group) {
   `;
 }
 
+// --- Value Badge Helper ---
+function renderValueBadge(value, cornerClass) {
+  const val = (value !== undefined && value !== null) ? value : 0;
+  const is10 = val === 10;
+  const zeroStyle = val === 0 ? ' style="background:#e2e8f0; color:#0f172a;"' : '';
+  return `
+    <div class="card-val-badge ${cornerClass} ${is10 ? 'val-10' : ''}"${zeroStyle}>
+      <span class="val-curr">$</span><span class="val-num">${val}</span><span class="val-unit">M</span>
+    </div>
+  `;
+}
+
 // --- Create Physical Monopoly Deal Card Element ---
 function createCardElement(card, interactive = false, isPreview = false) {
   const el = document.createElement('div');
@@ -730,7 +742,9 @@ function createCardElement(card, interactive = false, isPreview = false) {
         <div class="banknote-top-header">BANK OF MONOPOLY</div>
         <div class="banknote-center-oval">
           <img src="assets/cards/tycoon.webp" class="banknote-tycoon-img" alt="Tycoon">
-          <div class="banknote-amount">$${val}M</div>
+          <div class="banknote-amount">
+            <span class="bn-curr">$</span><span class="bn-val">${val}</span><span class="bn-unit">M</span>
+          </div>
           <div class="banknote-label">MONEY</div>
         </div>
         <div class="banknote-bottom-banner">MONOPOLY DEAL</div>
@@ -765,11 +779,11 @@ function createCardElement(card, interactive = false, isPreview = false) {
 
     const houseHotel = (group !== 'railroad' && group !== 'utility')
       ? `<div class="card-house-note">House: +$3M • Hotel: +$4M</div>`
-      : `<div class="card-house-note" style="visibility:hidden;">•</div>`;
+      : '';
 
     el.innerHTML = `
-      <div class="card-val-badge val-tl">$${card.value}M</div>
-      <div class="card-val-badge val-br">$${card.value}M</div>
+      ${renderValueBadge(card.value, 'val-tl')}
+      ${renderValueBadge(card.value, 'val-br')}
       <div class="card-frame">
         <div class="card-header-bar" style="background: ${rule.color}; color: ${textCol};">
           <div class="card-header-title">${escapeHtml(card.name)}</div>
@@ -778,9 +792,9 @@ function createCardElement(card, interactive = false, isPreview = false) {
         <div class="card-rent-table">
           <div class="rent-table-title">RENT VALUES</div>
           ${rentRowsHtml}
+          ${houseHotel}
           <div class="card-set-badge">FULL SET: ${size} CARDS</div>
         </div>
-        ${houseHotel}
       </div>
     `;
     return el;
@@ -792,25 +806,23 @@ function createCardElement(card, interactive = false, isPreview = false) {
     const c2 = card.colors[1];
     const rule1 = SET_RULES[c1] || { name: c1, color: '#333' };
     const rule2 = SET_RULES[c2] || { name: c2, color: '#555' };
+    const textCol1 = (c1 === 'yellow' || c1 === 'light_blue') ? '#0f172a' : '#ffffff';
+    const textCol2 = (c2 === 'yellow' || c2 === 'light_blue') ? '#0f172a' : '#ffffff';
     const curCol = card.current_color || c1;
 
     el.innerHTML = `
-      <div class="card-val-badge val-tl">$${card.value}M</div>
-      <div class="card-val-badge val-br">$${card.value}M</div>
+      ${renderValueBadge(card.value, 'val-tl')}
+      ${renderValueBadge(card.value, 'val-br')}
       <div class="card-frame">
         <div class="wild-split-header">
-          <div class="wild-split-col" style="background: ${rule1.color};">${rule1.name}</div>
-          <div class="wild-split-col" style="background: ${rule2.color};">${rule2.name}</div>
+          <div class="wild-split-col" style="background: ${rule1.color}; color: ${textCol1};">${rule1.name}</div>
+          <div class="wild-split-col" style="background: ${rule2.color}; color: ${textCol2};">${rule2.name}</div>
         </div>
         <div class="wild-dual-body">
+          <div class="wild-card-title">WILD PROPERTY</div>
           <div class="wild-swap-icon">⇄</div>
-          <div style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; text-align: center; color: #0f172a;">
-            PROPERTY WILDCARD
-          </div>
-          <div style="font-size: 0.58rem; color: #64748b; text-align: center;">
-            Swap color on your turn
-          </div>
-          <div style="margin-top: 4px; padding: 2px 6px; border-radius: 4px; background: #e2e8f0; border: 1.5px solid #000; font-size: 0.55rem; font-weight: 800;">
+          <div class="wild-card-subtitle">Swap color on your turn</div>
+          <div class="wild-active-badge">
             Active: <span style="color: ${SET_RULES[curCol]?.color || '#000'}">${COLOR_NAMES[curCol] || curCol}</span>
           </div>
         </div>
@@ -825,22 +837,18 @@ function createCardElement(card, interactive = false, isPreview = false) {
   // Handle 10-Color Wild Property
   if (card.type === 'wild_property') {
     el.innerHTML = `
-      <div class="card-val-badge val-tl" style="background:#e2e8f0; color:#000;">$0M</div>
-      <div class="card-val-badge val-br" style="background:#e2e8f0; color:#000;">$0M</div>
+      ${renderValueBadge(0, 'val-tl')}
+      ${renderValueBadge(0, 'val-br')}
       <div class="card-frame">
         <div class="card-header-bar" style="background: linear-gradient(90deg, #6e3b23, #38bdf8, #db2777, #ea580c, #dc2626, #eab308, #15803d, #00479b); color: #fff;">
-          <div class="card-header-title">10-COLOR WILDCARD</div>
+          <div class="card-header-title">MULTI-COLOR WILDCARD</div>
         </div>
         <div class="wild-dual-body">
           <div class="wild-rainbow-wheel">
             <div class="wild-wheel-center">WILD</div>
           </div>
-          <div style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; text-align: center; color: #0f172a;">
-            MULTI-COLOR PROPERTY
-          </div>
-          <div style="font-size: 0.55rem; color: #64748b; text-align: center; line-height: 1.1;">
-            Play on any property set
-          </div>
+          <div class="wild-card-title">ALL-COLOR PROPERTY</div>
+          <div class="wild-card-subtitle">Play on any property set</div>
         </div>
         <div class="action-rule-box">
           No monetary value • Cannot be banked • May move on turn.
@@ -854,14 +862,14 @@ function createCardElement(card, interactive = false, isPreview = false) {
   if (card.type === 'action') {
     const artHtml = getCardArtHtml(card);
     el.innerHTML = `
-      <div class="card-val-badge val-tl">$${card.value}M</div>
-      <div class="card-val-badge val-br">$${card.value}M</div>
+      ${renderValueBadge(card.value, 'val-tl')}
+      ${renderValueBadge(card.value, 'val-br')}
       <div class="card-frame">
         <div class="card-header-bar" style="background: #dc2626; color: #ffffff;">
           <div class="card-header-title">${escapeHtml(card.name)}</div>
-          <span style="font-size: 0.55rem; font-weight: 900; background: #991b1b; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">ACTION</span>
         </div>
         <div class="action-art-container">
+          <span class="action-type-pill">ACTION CARD</span>
           ${artHtml}
         </div>
         <div class="action-rule-box">
@@ -882,19 +890,23 @@ function createCardElement(card, interactive = false, isPreview = false) {
       : `background: linear-gradient(135deg, ${COLOR_HEX[c1] || '#333'} 50%, ${COLOR_HEX[c2] || '#555'} 50%); color: #ffffff;`;
 
     const artHtml = getCardArtHtml(card);
-    const title = isWild ? 'WILD RENT' : `RENT (${COLOR_NAMES[c1]} / ${COLOR_NAMES[c2]})`;
+    const subTitle = isWild ? 'ANY COLOR' : `${COLOR_NAMES[c1]} • ${COLOR_NAMES[c2]}`;
     const desc = isWild
       ? 'Force ANY ONE player to pay you rent for properties you own in ANY color.'
       : `All players pay you rent for properties you own in ${COLOR_NAMES[c1]} or ${COLOR_NAMES[c2]}.`;
 
     el.innerHTML = `
-      <div class="card-val-badge val-tl">$${card.value}M</div>
-      <div class="card-val-badge val-br">$${card.value}M</div>
+      ${renderValueBadge(card.value, 'val-tl')}
+      ${renderValueBadge(card.value, 'val-br')}
       <div class="card-frame">
-        <div class="card-header-bar" style="${headerStyle}">
-          <div class="card-header-title">${escapeHtml(title)}</div>
+        <div class="card-header-bar rent-header" style="${headerStyle}">
+          <div class="card-header-title">
+            <span class="rent-main-title">${isWild ? 'WILD RENT' : 'RENT'}</span>
+            <span class="rent-sub-title">${subTitle}</span>
+          </div>
         </div>
         <div class="action-art-container">
+          <span class="action-type-pill" style="background:#2563eb;">RENT CARD</span>
           ${artHtml}
         </div>
         <div class="action-rule-box">
@@ -907,8 +919,8 @@ function createCardElement(card, interactive = false, isPreview = false) {
 
   // Fallback
   el.innerHTML = `
-    <div class="card-val-badge val-tl">$${card.value || 0}M</div>
-    <div class="card-val-badge val-br">$${card.value || 0}M</div>
+    ${renderValueBadge(card.value || 0, 'val-tl')}
+    ${renderValueBadge(card.value || 0, 'val-br')}
     <div class="card-frame">
       <div class="card-header-bar" style="background: #334155; color: #fff;">
         <div class="card-header-title">${escapeHtml(card.name)}</div>
