@@ -12,6 +12,14 @@ RUN echo '<Directory /var/www/html>\n\
     Options -Indexes +FollowSymLinks\n\
     AllowOverride All\n\
     Require all granted\n\
+\n\
+    # Restrict direct web access to PHP files: only index.php and api.php are accessible\n\
+    <FilesMatch "(?i:\\.php$)">\n\
+        Require all denied\n\
+    </FilesMatch>\n\
+    <FilesMatch "(?i:^(index|api)\\.php$)">\n\
+        Require all granted\n\
+    </FilesMatch>\n\
 </Directory>' > /etc/apache2/conf-available/override.conf \
     && a2enconf override
 

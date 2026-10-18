@@ -1,0 +1,8 @@
+# Restrict direct web access to PHP files: only index.php and api.php are accessible
+<FilesMatch "(?i:\.php$)">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "(?i:^(index|api)\.php$)">
+    Require all granted
+</FilesMatch>

@@ -13,7 +13,10 @@ $input = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 try {
     switch ($action) {
         case 'create':
-            $name = trim($input['name'] ?? '') ?: 'Host';
+            $name = trim($input['name'] ?? '');
+            if ($name === '') {
+                throw new Exception("Please enter your name.");
+            }
             $gameId = strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)); // 6-char room code
             $state = GameEngine::createGame($name);
             $hostId = array_key_first($state['players']);
@@ -31,7 +34,10 @@ try {
 
         case 'join':
             $gameId = strtoupper(trim($input['game_id'] ?? ''));
-            $name = trim($input['name'] ?? '') ?: 'Player';
+            $name = trim($input['name'] ?? '');
+            if ($name === '') {
+                throw new Exception("Please enter your name.");
+            }
 
             $pdo->beginTransaction();
             $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ? FOR UPDATE");
@@ -238,6 +244,38 @@ try {
             ]);
             break;
 
+        case 'accept_action':
+            $gameId = strtoupper(trim($input['game_id'] ?? ''));
+            $playerId = trim($input['player_id'] ?? '');
+
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ? FOR UPDATE");
+            $stmt->execute([$gameId]);
+            $row = $stmt->fetch();
+
+            if (!$row) {
+                $pdo->rollBack();
+                throw new Exception("Game not found.");
+            }
+
+            $state = json_decode($row['state'], true);
+            GameEngine::resolveAcceptAction($state, $playerId);
+
+            if ($state['status'] === 'finished') {
+                $delSig = $pdo->prepare("DELETE FROM signaling WHERE game_id = ?");
+                $delSig->execute([$gameId]);
+            }
+
+            $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
+            $update->execute([json_encode($state), $gameId]);
+            $pdo->commit();
+
+            echo json_encode([
+                'ok' => true,
+                'state' => GameEngine::sanitizeStateForPlayer($state, $playerId),
+            ]);
+            break;
+
         case 'leave':
             $gameId = strtoupper(trim($input['game_id'] ?? $_GET['game_id'] ?? ''));
             $playerId = trim($input['player_id'] ?? $_GET['player_id'] ?? '');
@@ -253,6 +291,15 @@ try {
                     $pdo->prepare("DELETE FROM games WHERE id = ?")->execute([$gameId]);
                     $pdo->prepare("DELETE FROM signaling WHERE game_id = ?")->execute([$gameId]);
                 } else {
+                    if (!empty($state['pending_action'])) {
+                        if ($state['pending_action']['initiator_id'] === $playerId || $state['pending_action']['target_id'] === $playerId) {
+                            $state['discard'][] = $state['pending_action']['action_card'];
+                            foreach ($state['pending_action']['jsn_chain'] ?? [] as $jsn) {
+                                $state['discard'][] = $jsn['card'];
+                            }
+                            $state['pending_action'] = null;
+                        }
+                    }
                     if (!empty($state['pending_payment'])) {
                         if ($state['pending_payment']['collector_id'] === $playerId) {
                             $state['discard'][] = $state['pending_payment']['action_card'];

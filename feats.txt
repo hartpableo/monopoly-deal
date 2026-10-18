@@ -1,0 +1,11 @@
+- prevent properties from being converted to cash, they must always be properties. though they can be used as payment, but the receiver of the payment will still have it as property
+- fix "move" color - the move or swap icon for wildcards is broken, pls fix
+- sly deal - user must be able to choose from properties of selected opponent that is not part of a set and is not a wildcard (but dual color is applicable)
+- review payments - re-evaluate card values. at the moment, property or set values are determined by each property card's value. but this should be something like: 1 property = 2M, 2 properties = 3M, 3 properties = 5M. as you can see, while each card still has their own values, the total value of a property set is determined at set level, not dependent on each properties' values
+- moving cards around must not count as a move/turn
+- toast alerts with sound - this is so everyone can easily be aware of what's happening instead of having to look at the logs all the time
+- double the rent must be 2x only and not the set's value multiplied by itself
+- winner announcement - when a game ends, show a winner announcement. and show everyone's final bank money and property sets (complete and incomplete)
+- action cards, unlike property cards, can still be banked
+- forced deal - user must choose from properties of selected opponent that is not part of a set and is not a wildcard (dual-color is applicable) to swap with an incomplete set property
+- when an action card is used, prompt players first to proceed with payment or use "just say no", instead of the system deciding it for them. even when a player has no "just say no" card, prompt him still so it's uniform for everyone and not obvious who has the card or not
