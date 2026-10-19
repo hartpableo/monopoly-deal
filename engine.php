@@ -113,15 +113,17 @@ class GameEngine {
         unset($player);
 
         $firstPlayerId = $state['turn_order'][0];
+        $drawCount = count($state['players'][$firstPlayerId]['hand']) === 0 ? 5 : 2;
         $state['turn'] = [
             'active_player_id' => $firstPlayerId,
             'actions_left' => 3,
             'turn_number' => 1,
             'rent_multiplier' => 1,
+            'cards_drawn' => $drawCount,
         ];
 
-        // Active player draws 2 cards at start of turn
-        self::drawCardsForPlayer($state, $firstPlayerId, 2);
+        // Active player draws cards at start of turn (5 if empty hand, else 2)
+        self::drawCardsForPlayer($state, $firstPlayerId, $drawCount);
 
         $firstPlayerName = $state['players'][$firstPlayerId]['name'];
         self::addLog($state, "Game started! It's {$firstPlayerName}'s turn.");
@@ -353,10 +355,15 @@ class GameEngine {
 
         $drawCount = count($state['players'][$nextPlayerId]['hand']) === 0 ? 5 : 2;
         self::drawCardsForPlayer($state, $nextPlayerId, $drawCount);
+        $state['turn']['cards_drawn'] = $drawCount;
 
         $nextName = $state['players'][$nextPlayerId]['name'];
         $reason = $customLogReason ?: "{$player['name']} ended their turn.";
-        self::addLog($state, "{$reason} Now it's {$nextName}'s turn.");
+        if ($drawCount === 5) {
+            self::addLog($state, "{$reason} Now it's {$nextName}'s turn. 🎴 {$nextName} ran out of cards and drew 5 cards!");
+        } else {
+            self::addLog($state, "{$reason} Now it's {$nextName}'s turn.");
+        }
     }
 
     public static function checkAutoEndTurn(array &$state): void {

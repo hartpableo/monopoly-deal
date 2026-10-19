@@ -9,3 +9,4 @@
 - action cards, unlike property cards, can still be banked
 - forced deal - user must choose from properties of selected opponent that is not part of a set and is not a wildcard (dual-color is applicable) to swap with an incomplete set property
 - when an action card is used, prompt players first to proceed with payment or use "just say no", instead of the system deciding it for them. even when a player has no "just say no" card, prompt him still so it's uniform for everyone and not obvious who has the card or not
+- when a player runs out of cards, he will get 5 cards instead of just 2 in his next turn

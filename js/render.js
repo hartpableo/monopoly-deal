@@ -156,7 +156,12 @@ export function render() {
   // Turn change detection & toast
   if (isPlaying && state.previousActivePlayerId !== null && state.currentGameState.turn.active_player_id !== state.previousActivePlayerId) {
     if (isMyTurn) {
-      showToast("It's Your Turn! 🎩", "You have 3 actions to play.", "🎩", "turn");
+      const drawn = state.currentGameState.turn?.cards_drawn;
+      if (drawn === 5) {
+        showToast("It's Your Turn! 🎴", "You ran out of cards! You drew 5 cards instead of 2. You have 3 actions to play.", "🎴", "turn");
+      } else {
+        showToast("It's Your Turn! 🎩", "You have 3 actions to play.", "🎩", "turn");
+      }
       playGameSound("turn");
     }
   }
@@ -435,7 +440,16 @@ export function renderMyTable(myPlayer) {
   const handContainer = document.getElementById('my-hand-container');
   handContainer.innerHTML = '';
 
-  (myPlayer.hand || []).forEach(card => {
+  const handCards = myPlayer.hand || [];
+  if (handCards.length === 0) {
+    const emptyMsg = isMyTurn
+      ? 'No cards in hand. Click "End Turn" when ready (you will draw 5 cards on your next turn).'
+      : 'No cards in hand. You will draw 5 cards on your next turn!';
+    handContainer.innerHTML = `<span class="empty-state-text">${emptyMsg}</span>`;
+    return;
+  }
+
+  handCards.forEach(card => {
     const canPlay = isMyTurn && state.currentGameState.turn.actions_left > 0 && !state.currentGameState.pending_payment && !state.currentGameState.pending_action;
     const cardEl = createCardElement(card, canPlay);
     if (canPlay) {
