@@ -209,6 +209,14 @@ export function getPropertyHeaderIcon(group) {
   `;
 }
 
+export function getSwapIconSvg(size = 12, className = 'swap-icon-svg') {
+  return `
+    <svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor" class="${className}" aria-hidden="true" style="display:inline-block; vertical-align:middle;">
+      <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
+    </svg>
+  `;
+}
+
 export function renderValueBadge(value, cornerClass) {
   const val = (value !== undefined && value !== null) ? value : 0;
   const is10 = val === 10;
@@ -317,7 +325,7 @@ export function createCardElement(card, interactive = false, isPreview = false) 
         </div>
         <div class="wild-dual-body">
           <div class="wild-card-title">WILD PROPERTY</div>
-          <div class="wild-swap-icon interactive" title="Click to swap color">⇄</div>
+          <div class="wild-swap-icon interactive" title="Click to swap color">${getSwapIconSvg(18, 'wild-swap-svg')}</div>
           <div class="wild-card-subtitle">Swap color on your turn</div>
           <div class="wild-active-badge">
             Active: <span style="color: ${SET_RULES[curCol]?.color || '#000'}">${COLOR_NAMES[curCol] || curCol}</span>
@@ -355,7 +363,7 @@ export function createCardElement(card, interactive = false, isPreview = false) 
             <div class="wild-wheel-center">WILD</div>
           </div>
           <div class="wild-card-title">ALL-COLOR PROPERTY</div>
-          <div class="wild-swap-icon interactive" title="Click to move to another color set">⇄</div>
+          <div class="wild-swap-icon interactive" title="Click to move to another color set">${getSwapIconSvg(18, 'wild-swap-svg')}</div>
           <div class="wild-card-subtitle">Move to any set on your turn</div>
           <div class="wild-active-badge">
             Active: <span style="color: ${SET_RULES[curCol]?.color || '#000'}">${COLOR_NAMES[curCol] || curCol}</span>
@@ -466,8 +474,12 @@ export function createMiniPropertyCard(card, groupColor, isOwner = false, isMyTu
   const icon = isHouse ? '🏠' : (isHotel ? '🏨' : getPropertyHeaderIcon(color));
 
   let moveBtnHtml = '';
-  if (isWild && isOwner && isMyTurn) {
-    moveBtnHtml = `<button class="btn-move-wild" title="Move wildcard to another set (Free action)">⇄ Move</button>`;
+  if (isWild && isOwner) {
+    if (isMyTurn) {
+      moveBtnHtml = `<button type="button" class="btn-move-wild" title="Move wildcard to another set (Free action)">${getSwapIconSvg(12, 'btn-move-wild-icon')}<span>Move</span></button>`;
+    } else {
+      moveBtnHtml = `<button type="button" class="btn-move-wild btn-move-wild-disabled" disabled title="Can only move wildcards on your turn">${getSwapIconSvg(12, 'btn-move-wild-icon')}<span>Move</span></button>`;
+    }
   }
 
   el.innerHTML = `
@@ -480,7 +492,7 @@ export function createMiniPropertyCard(card, groupColor, isOwner = false, isMyTu
     ${moveBtnHtml}
   `;
 
-  if (moveBtnHtml) {
+  if (moveBtnHtml && isMyTurn) {
     const moveBtn = el.querySelector('.btn-move-wild');
     if (moveBtn) {
       moveBtn.addEventListener('click', (e) => {

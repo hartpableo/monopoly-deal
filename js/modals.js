@@ -12,7 +12,8 @@ import {
   setHasHouse,
   setHasHotel,
   getPropertySetValue,
-  calculatePlayerTableValue
+  calculatePlayerTableValue,
+  getSwapIconSvg
 } from './cards.js';
 import { render } from './render.js';
 import { clearSession } from './game.js';
@@ -610,7 +611,7 @@ export function openMoveWildcardModal(card, currentColor) {
     return;
   }
 
-  title.textContent = `⇄ Move Wildcard: ${card.name}`;
+  title.innerHTML = `${getSwapIconSvg(18)} <span>Move Wildcard: ${escapeHtml(card.name)}</span>`;
   if (preview) {
     preview.innerHTML = '';
     preview.appendChild(createCardElement(card, false, true));
@@ -648,7 +649,7 @@ export function openMoveWildcardModal(card, currentColor) {
           });
           state.currentGameState = res.state;
           render();
-          showToast('Wildcard Moved', `Moved ${card.name} to ${COLOR_NAMES[col] || col} set.`, '⇄', 'action');
+          showToast('Wildcard Moved', `Moved ${card.name} to ${COLOR_NAMES[col] || col} set.`, '🔄', 'action');
           playGameSound('action');
         } catch (err) {
           alert(err.message);
@@ -697,17 +698,28 @@ export function openInspectModal(card) {
   const oldBtn = document.getElementById('inspect-move-wild-btn');
   if (oldBtn) oldBtn.remove();
 
-  if (card.type === 'wild_property' && isCardOnMyTable && isMyTurn) {
+  if (card.type === 'wild_property' && isCardOnMyTable) {
     const moveBtn = document.createElement('button');
     moveBtn.id = 'inspect-move-wild-btn';
     moveBtn.className = 'btn-primary';
     moveBtn.style.width = '100%';
     moveBtn.style.marginTop = '8px';
-    moveBtn.textContent = '⇄ Move / Swap Wildcard Color';
-    moveBtn.addEventListener('click', () => {
-      closeInspectModal();
-      openMoveWildcardModal(card, currentColor);
-    });
+    moveBtn.style.display = 'inline-flex';
+    moveBtn.style.alignItems = 'center';
+    moveBtn.style.justifyContent = 'center';
+    moveBtn.style.gap = '6px';
+    moveBtn.innerHTML = `${getSwapIconSvg(15)} <span>Move / Swap Wildcard Color</span>`;
+    if (!isMyTurn) {
+      moveBtn.disabled = true;
+      moveBtn.title = "Can only move wildcards on your turn";
+      moveBtn.style.opacity = '0.55';
+      moveBtn.style.cursor = 'not-allowed';
+    } else {
+      moveBtn.addEventListener('click', () => {
+        closeInspectModal();
+        openMoveWildcardModal(card, currentColor);
+      });
+    }
     modal.querySelector('.modal-content').insertBefore(moveBtn, document.getElementById('inspect-close-btn'));
   }
 

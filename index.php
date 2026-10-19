@@ -216,7 +216,11 @@
 <div id="move-wild-modal" class="modal-overlay hidden">
   <div class="modal-content modal-card-dialog">
     <div class="modal-header-row">
-      <h3 id="move-wild-title">⇄ Move Wildcard</h3>
+      <h3 id="move-wild-title">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: inline-block; vertical-align: -2px; margin-right: 6px;" aria-hidden="true">
+          <path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/>
+        </svg>Move Wildcard
+      </h3>
       <button id="move-wild-close-x" class="modal-close-x" aria-label="Close">✕</button>
     </div>
     <div id="move-wild-preview" class="modal-card-preview"></div>
