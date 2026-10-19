@@ -68,6 +68,27 @@ class GameEngine {
         return $playerId;
     }
 
+    public static function removePlayerFromLobby(array &$state, string $hostId, string $targetPlayerId): void {
+        if ($state['status'] !== 'lobby') {
+            throw new Exception("Players can only be removed while in the lobby.");
+        }
+        if (empty($state['players'][$hostId]['is_host'])) {
+            throw new Exception("Only the host can remove players.");
+        }
+        if ($hostId === $targetPlayerId) {
+            throw new Exception("The host cannot be removed.");
+        }
+        if (!isset($state['players'][$targetPlayerId])) {
+            throw new Exception("Player not found in game.");
+        }
+
+        $targetName = $state['players'][$targetPlayerId]['name'] ?? 'Player';
+        unset($state['players'][$targetPlayerId]);
+        $state['turn_order'] = array_values(array_filter($state['turn_order'], fn($id) => $id !== $targetPlayerId));
+
+        self::addLog($state, "{$targetName} was removed from the lobby by host.");
+    }
+
     public static function startGame(array &$state, string $playerId): void {
         if ($state['status'] !== 'lobby') {
             throw new Exception("Game already started.");

@@ -64,6 +64,37 @@ try {
             ]);
             break;
 
+        case 'remove_player':
+            $gameId = strtoupper(trim($input['game_id'] ?? ''));
+            $hostId = trim($input['player_id'] ?? '');
+            $targetPlayerId = trim($input['target_player_id'] ?? '');
+
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("SELECT version, state FROM games WHERE id = ? FOR UPDATE");
+            $stmt->execute([$gameId]);
+            $row = $stmt->fetch();
+
+            if (!$row) {
+                $pdo->rollBack();
+                throw new Exception("Game room not found.");
+            }
+
+            $state = json_decode($row['state'], true);
+            GameEngine::removePlayerFromLobby($state, $hostId, $targetPlayerId);
+
+            $delSig = $pdo->prepare("DELETE FROM signaling WHERE game_id = ? AND (sender_id = ? OR receiver_id = ?)");
+            $delSig->execute([$gameId, $targetPlayerId, $targetPlayerId]);
+
+            $update = $pdo->prepare("UPDATE games SET version = version + 1, state = ? WHERE id = ?");
+            $update->execute([json_encode($state), $gameId]);
+            $pdo->commit();
+
+            echo json_encode([
+                'ok' => true,
+                'state' => GameEngine::sanitizeStateForPlayer($state, $hostId),
+            ]);
+            break;
+
         case 'start':
             $gameId = strtoupper(trim($input['game_id'] ?? ''));
             $playerId = trim($input['player_id'] ?? '');

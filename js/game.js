@@ -59,6 +59,30 @@ export function setupLobbyEvents() {
       alert(err.message);
     }
   });
+
+  const lobbyPlayersList = document.getElementById('lobby-players');
+  if (lobbyPlayersList) {
+    lobbyPlayersList.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.btn-remove-player');
+      if (!btn) return;
+      const targetId = btn.dataset.playerId;
+      const targetName = btn.dataset.playerName || 'this player';
+      if (!targetId || !state.currentGameId || !state.currentPlayerData) return;
+      if (!confirm(`Remove ${targetName} from the lobby?`)) return;
+
+      try {
+        const res = await apiRequest('remove_player', 'POST', {
+          game_id: state.currentGameId,
+          player_id: state.currentPlayerData.id,
+          target_player_id: targetId
+        });
+        state.currentGameState = res.state;
+        render();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
 }
 
 export function clearSession() {
@@ -207,6 +231,7 @@ export async function fetchGameState() {
     if (!res.state || !res.state.players || !res.state.players[state.currentPlayerData.id]) {
       console.warn('Current player no longer in game players list.');
       clearSession();
+      alert('You were removed from the lobby.');
       return;
     }
     state.currentGameState = res.state;

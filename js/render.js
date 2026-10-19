@@ -322,11 +322,18 @@ export function renderLobbyView() {
 
   const myId = state.currentPlayerData?.id;
   const myPlayer = state.currentGameState?.players?.[myId];
+  const isHost = Boolean(myPlayer?.is_host);
 
   Object.values(state.currentGameState.players).forEach(p => {
     const isSpeaking = state.speakingPlayers.has(p.id);
     const li = document.createElement('li');
     li.className = 'lobby-player-item';
+
+    const canRemove = isHost && !p.is_host;
+    const removeBtnHtml = canRemove
+      ? `<button type="button" class="btn-danger btn-remove-player" data-player-id="${escapeHtml(p.id)}" data-player-name="${escapeHtml(p.name)}">Remove</button>`
+      : '';
+
     li.innerHTML = `
       <div class="player-identity">
         <span><strong>${escapeHtml(p.name)}</strong> ${p.is_host ? '(Host)' : ''}</span>
@@ -339,6 +346,7 @@ export function renderLobbyView() {
           </span>
         </span>
       </div>
+      ${removeBtnHtml}
     `;
     playersList.appendChild(li);
   });

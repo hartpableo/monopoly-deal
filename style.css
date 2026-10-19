@@ -368,6 +368,20 @@ main {
   color: var(--ink);
 }
 
+.btn-remove-player {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  box-shadow: 1.5px 1.5px 0px var(--ink);
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.btn-remove-player:hover:not(:disabled) {
+  box-shadow: 2px 2px 0px var(--ink);
+}
+
 .lobby-empty-hint {
   color: var(--text-muted);
   font-size: 0.85rem;
