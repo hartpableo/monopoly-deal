@@ -9,9 +9,20 @@ export function getSetPropertiesCount(cards) {
   return (cards || []).filter(c => c.type === 'property' || c.type === 'wild_property').length;
 }
 
+export function getSetColor(setKey, cards = []) {
+  const base = String(setKey || '').split('#')[0];
+  if (SET_RULES[base]) return base;
+  for (const c of cards) {
+    if (c.group && SET_RULES[c.group]) return c.group;
+    if (c.current_color && SET_RULES[c.current_color]) return c.current_color;
+  }
+  return base;
+}
+
 export function isCompleteSet(cards, color) {
-  if (!SET_RULES[color]) return false;
-  return getSetPropertiesCount(cards) >= SET_RULES[color].size;
+  const baseCol = String(color || '').split('#')[0];
+  if (!SET_RULES[baseCol]) return false;
+  return getSetPropertiesCount(cards) >= SET_RULES[baseCol].size;
 }
 
 export function setHasHouse(cards) {
@@ -24,7 +35,8 @@ export function setHasHotel(cards) {
 
 export function getPropertySetValue(color, propCount, hasHouse = false, hasHotel = false) {
   if (propCount <= 0) return 0;
-  const rule = SET_RULES[color];
+  const baseCol = String(color || '').split('#')[0];
+  const rule = SET_RULES[baseCol];
   if (!rule || !rule.rent || rule.rent.length === 0) return 0;
   const rentIndex = Math.min(propCount - 1, rule.rent.length - 1);
   let val = rule.rent[rentIndex];
@@ -38,7 +50,8 @@ export function getPropertySetValue(color, propCount, hasHouse = false, hasHotel
 export function calculatePlayerTableValue(player) {
   if (!player) return 0;
   let total = (player.bank || []).reduce((acc, c) => acc + (c.value || 0), 0);
-  Object.entries(player.property_sets || {}).forEach(([color, cards]) => {
+  Object.entries(player.property_sets || {}).forEach(([setKey, cards]) => {
+    const color = getSetColor(setKey, cards);
     const pCount = getSetPropertiesCount(cards);
     const hasHouse = setHasHouse(cards);
     const hasHotel = setHasHotel(cards);

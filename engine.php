@@ -192,10 +192,7 @@ class GameEngine {
                     $card['current_color'] = $color;
                 }
 
-                if (!isset($player['property_sets'][$color])) {
-                    $player['property_sets'][$color] = [];
-                }
-                $player['property_sets'][$color][] = $card;
+                self::addPropertyCardToPlayer($player, $card, $color, $state);
                 $colorName = CardDefinitions::SET_RULES[$color]['name'];
                 self::addLog($state, "{$player['name']} played {$card['name']} to their {$colorName} set.");
                 break;
@@ -231,14 +228,16 @@ class GameEngine {
 
         $player = &$state['players'][$playerId];
         $foundCard = null;
+        $foundSetKey = null;
         $foundColor = null;
         $foundIdx = null;
 
-        foreach ($player['property_sets'] as $color => $cards) {
+        foreach ($player['property_sets'] as $setKey => $cards) {
             foreach ($cards as $idx => $c) {
                 if ($c['id'] === $cardId) {
                     $foundCard = $c;
-                    $foundColor = $color;
+                    $foundSetKey = $setKey;
+                    $foundColor = self::getSetColor($setKey, $cards);
                     $foundIdx = $idx;
                     break 2;
                 }
@@ -258,17 +257,17 @@ class GameEngine {
         }
 
         // Remove from source set
-        array_splice($player['property_sets'][$foundColor], $foundIdx, 1);
-        if (empty($player['property_sets'][$foundColor])) {
-            unset($player['property_sets'][$foundColor]);
+        array_splice($player['property_sets'][$foundSetKey], $foundIdx, 1);
+        if (empty($player['property_sets'][$foundSetKey])) {
+            unset($player['property_sets'][$foundSetKey]);
         }
 
         // Add to target set with new current_color
         $foundCard['current_color'] = $toColor;
-        if (!isset($player['property_sets'][$toColor])) {
-            $player['property_sets'][$toColor] = [];
-        }
-        $player['property_sets'][$toColor][] = $foundCard;
+        self::addPropertyCardToPlayer($player, $foundCard, $toColor, $state);
+
+        // Re-evaluate if separated same-category properties can be merged
+        self::reorganizePlayerProperties($player, $state);
 
         $fromName = CardDefinitions::SET_RULES[$foundColor]['name'];
         $toName = CardDefinitions::SET_RULES[$toColor]['name'];
@@ -454,33 +453,45 @@ class GameEngine {
 
                 case 'house':
                     $color = $params['color'] ?? '';
+                    $setKey = $params['set_key'] ?? $color;
                     if (!isset(CardDefinitions::SET_RULES[$color])) {
                         throw new Exception("Select a valid completed property set color for the House.");
                     }
                     if (in_array($color, ['railroad', 'utility'], true)) {
                         throw new Exception("Houses cannot be built on Railroads or Utilities.");
                     }
-                    $set = $player['property_sets'][$color] ?? [];
+                    $set = $player['property_sets'][$setKey] ?? $player['property_sets'][$color] ?? null;
+                    if (!$set) {
+                        throw new Exception("Property set not found.");
+                    }
                     if (!self::isCompleteSet($set, $color)) {
                         throw new Exception("You must complete the full set before adding a House.");
                     }
                     if (self::setHasHouse($set)) {
                         throw new Exception("This property set already has a House.");
                     }
-                    $player['property_sets'][$color][] = $card;
+                    if (isset($player['property_sets'][$setKey])) {
+                        $player['property_sets'][$setKey][] = $card;
+                    } else {
+                        $player['property_sets'][$color][] = $card;
+                    }
                     $colorName = CardDefinitions::SET_RULES[$color]['name'];
                     self::addLog($state, "{$player['name']} added a House to their {$colorName} set (+ \$3M rent)!");
                     return;
 
                 case 'hotel':
                     $color = $params['color'] ?? '';
+                    $setKey = $params['set_key'] ?? $color;
                     if (!isset(CardDefinitions::SET_RULES[$color])) {
                         throw new Exception("Select a valid completed property set color for the Hotel.");
                     }
                     if (in_array($color, ['railroad', 'utility'], true)) {
                         throw new Exception("Hotels cannot be built on Railroads or Utilities.");
                     }
-                    $set = $player['property_sets'][$color] ?? [];
+                    $set = $player['property_sets'][$setKey] ?? $player['property_sets'][$color] ?? null;
+                    if (!$set) {
+                        throw new Exception("Property set not found.");
+                    }
                     if (!self::isCompleteSet($set, $color)) {
                         throw new Exception("You must complete the full set before adding a Hotel.");
                     }
@@ -490,7 +501,11 @@ class GameEngine {
                     if (self::setHasHotel($set)) {
                         throw new Exception("This property set already has a Hotel.");
                     }
-                    $player['property_sets'][$color][] = $card;
+                    if (isset($player['property_sets'][$setKey])) {
+                        $player['property_sets'][$setKey][] = $card;
+                    } else {
+                        $player['property_sets'][$color][] = $card;
+                    }
                     $colorName = CardDefinitions::SET_RULES[$color]['name'];
                     self::addLog($state, "{$player['name']} added a Hotel to their {$colorName} set (+ \$4M rent)!");
                     return;
@@ -498,11 +513,12 @@ class GameEngine {
                 case 'deal_breaker':
                     $targetId = $params['target_player_id'] ?? null;
                     $color = $params['color'] ?? '';
+                    $setKey = $params['set_key'] ?? $color;
                     if (!$targetId || !isset($state['players'][$targetId]) || $targetId === $playerId) {
                         throw new Exception("Select a valid target player for Deal Breaker.");
                     }
                     $target = &$state['players'][$targetId];
-                    $targetSet = $target['property_sets'][$color] ?? [];
+                    $targetSet = $target['property_sets'][$setKey] ?? $target['property_sets'][$color] ?? [];
                     if (!self::isCompleteSet($targetSet, $color)) {
                         throw new Exception("Deal Breaker can only steal a FULL, completed property set.");
                     }
@@ -517,6 +533,7 @@ class GameEngine {
                         'target_name' => $target['name'],
                         'params' => [
                             'color' => $color,
+                            'set_key' => $setKey,
                             'color_name' => $colorName,
                         ],
                         'reason' => "Deal Breaker (stealing full {$colorName} set)",
@@ -535,13 +552,16 @@ class GameEngine {
                         throw new Exception("Select a valid target player for Sly Deal.");
                     }
                     $target = &$state['players'][$targetId];
+                    $foundSetKey = null;
                     $foundCol = null;
                     $foundIdx = null;
                     $stolenCard = null;
 
-                    foreach ($target['property_sets'] as $col => $cards) {
+                    foreach ($target['property_sets'] as $setKey => $cards) {
+                        $col = self::getSetColor($setKey, $cards);
                         foreach ($cards as $idx => $c) {
                             if ($c['id'] === $stolenCardId) {
+                                $foundSetKey = $setKey;
                                 $foundCol = $col;
                                 $foundIdx = $idx;
                                 $stolenCard = $c;
@@ -554,7 +574,7 @@ class GameEngine {
                         throw new Exception("Target property card not found.");
                     }
 
-                    if (self::isCompleteSet($target['property_sets'][$foundCol], $foundCol)) {
+                    if (self::isCompleteSet($target['property_sets'][$foundSetKey], $foundCol)) {
                         throw new Exception("Cannot steal a property from a completed set with Sly Deal!");
                     }
 
@@ -580,6 +600,7 @@ class GameEngine {
                             'card_id' => $stolenCardId,
                             'dest_color' => $destCol,
                             'found_color' => $foundCol,
+                            'found_set_key' => $foundSetKey,
                             'card_name' => $stolenCard['name'],
                         ],
                         'reason' => "Sly Deal (stealing {$stolenCard['name']})",
@@ -602,11 +623,12 @@ class GameEngine {
                     $target = &$state['players'][$targetId];
 
                     // Find my card
-                    $myCol = null; $myIdx = null; $myCard = null;
-                    foreach ($player['property_sets'] as $col => $cards) {
+                    $mySetKey = null; $myCol = null; $myIdx = null; $myCard = null;
+                    foreach ($player['property_sets'] as $setKey => $cards) {
+                        $col = self::getSetColor($setKey, $cards);
                         foreach ($cards as $idx => $c) {
                             if ($c['id'] === $myCardId) {
-                                $myCol = $col; $myIdx = $idx; $myCard = $c;
+                                $mySetKey = $setKey; $myCol = $col; $myIdx = $idx; $myCard = $c;
                                 break 2;
                             }
                         }
@@ -614,16 +636,17 @@ class GameEngine {
                     if (!$myCard || !in_array($myCard['type'], ['property', 'wild_property'], true)) {
                         throw new Exception("Invalid card selected to give up.");
                     }
-                    if (self::isCompleteSet($player['property_sets'][$myCol], $myCol)) {
+                    if (self::isCompleteSet($player['property_sets'][$mySetKey], $myCol)) {
                         throw new Exception("Cannot give away a card from your own completed set.");
                     }
 
                     // Find target card
-                    $targetCol = null; $targetIdx = null; $targetCard = null;
-                    foreach ($target['property_sets'] as $col => $cards) {
+                    $targetSetKey = null; $targetCol = null; $targetIdx = null; $targetCard = null;
+                    foreach ($target['property_sets'] as $setKey => $cards) {
+                        $col = self::getSetColor($setKey, $cards);
                         foreach ($cards as $idx => $c) {
                             if ($c['id'] === $targetCardId) {
-                                $targetCol = $col; $targetIdx = $idx; $targetCard = $c;
+                                $targetSetKey = $setKey; $targetCol = $col; $targetIdx = $idx; $targetCard = $c;
                                 break 2;
                             }
                         }
@@ -631,7 +654,7 @@ class GameEngine {
                     if (!$targetCard || !in_array($targetCard['type'], ['property', 'wild_property'], true)) {
                         throw new Exception("Invalid target card selected to steal.");
                     }
-                    if (self::isCompleteSet($target['property_sets'][$targetCol], $targetCol)) {
+                    if (self::isCompleteSet($target['property_sets'][$targetSetKey], $targetCol)) {
                         throw new Exception("Cannot steal a property from a completed set with Forced Deal!");
                     }
 
@@ -655,6 +678,8 @@ class GameEngine {
                         'params' => [
                             'my_card_id' => $myCardId,
                             'target_card_id' => $targetCardId,
+                            'my_set_key' => $mySetKey,
+                            'target_set_key' => $targetSetKey,
                             'p_dest_color' => $pDestCol,
                             't_dest_color' => $tDestCol,
                             'my_card_name' => $myCard['name'],
@@ -773,9 +798,26 @@ class GameEngine {
         return $count;
     }
 
+    public static function getSetColor(string $setKey, array $cards = []): string {
+        $base = explode('#', $setKey)[0];
+        if (isset(CardDefinitions::SET_RULES[$base])) {
+            return $base;
+        }
+        foreach ($cards as $c) {
+            if (!empty($c['group']) && isset(CardDefinitions::SET_RULES[$c['group']])) {
+                return $c['group'];
+            }
+            if (!empty($c['current_color']) && isset(CardDefinitions::SET_RULES[$c['current_color']])) {
+                return $c['current_color'];
+            }
+        }
+        return $base;
+    }
+
     public static function isCompleteSet(array $cards, string $color): bool {
-        if (!isset(CardDefinitions::SET_RULES[$color])) return false;
-        return self::getSetPropertiesCount($cards) >= CardDefinitions::SET_RULES[$color]['size'];
+        $baseCol = explode('#', $color)[0];
+        if (!isset(CardDefinitions::SET_RULES[$baseCol])) return false;
+        return self::getSetPropertiesCount($cards) >= CardDefinitions::SET_RULES[$baseCol]['size'];
     }
 
     public static function setHasHouse(array $cards): bool {
@@ -792,26 +834,197 @@ class GameEngine {
         return false;
     }
 
-    public static function calculateRent(array $player, string $color): int {
-        $cards = $player['property_sets'][$color] ?? [];
-        if (empty($cards)) return 0;
-
-        $rule = CardDefinitions::SET_RULES[$color] ?? null;
-        if (!$rule) return 0;
-
-        $propCount = self::getSetPropertiesCount($cards);
-        if ($propCount === 0) return 0;
-
-        $rentIndex = min($propCount - 1, count($rule['rent']) - 1);
-        $rent = $rule['rent'][$rentIndex];
-
-        // If complete set, add House and Hotel bonuses
-        if ($propCount >= $rule['size']) {
-            if (self::setHasHouse($cards)) $rent += 3;
-            if (self::setHasHotel($cards)) $rent += 4;
+    public static function reorganizePlayerProperties(array &$player, ?array &$state = null): void {
+        if (empty($player['property_sets'])) {
+            return;
         }
 
-        return $rent;
+        $colorSets = [];
+        foreach ($player['property_sets'] as $setKey => $cards) {
+            if (empty($cards)) continue;
+            $color = self::getSetColor($setKey, $cards);
+            if (!isset(CardDefinitions::SET_RULES[$color])) continue;
+            $colorSets[$color][] = array_values($cards);
+        }
+
+        $newPropertySets = [];
+
+        foreach ($colorSets as $color => $sets) {
+            $targetSize = CardDefinitions::SET_RULES[$color]['size'];
+
+            if (count($sets) > 1) {
+                $fullSets = [];
+                $incompleteSets = [];
+
+                foreach ($sets as $set) {
+                    if (self::getSetPropertiesCount($set) >= $targetSize) {
+                        $fullSets[] = $set;
+                    } else {
+                        $incompleteSets[] = $set;
+                    }
+                }
+
+                if (count($incompleteSets) > 1) {
+                    // Prioritize sets with hotel, house, or more properties
+                    usort($incompleteSets, function($a, $b) {
+                        $hotelA = self::setHasHotel($a) ? 1 : 0;
+                        $hotelB = self::setHasHotel($b) ? 1 : 0;
+                        if ($hotelA !== $hotelB) return $hotelB <=> $hotelA;
+
+                        $houseA = self::setHasHouse($a) ? 1 : 0;
+                        $houseB = self::setHasHouse($b) ? 1 : 0;
+                        if ($houseA !== $houseB) return $houseB <=> $houseA;
+
+                        return self::getSetPropertiesCount($b) <=> self::getSetPropertiesCount($a);
+                    });
+
+                    for ($i = 0; $i < count($incompleteSets); $i++) {
+                        if (self::getSetPropertiesCount($incompleteSets[$i]) >= $targetSize) {
+                            continue;
+                        }
+
+                        for ($j = $i + 1; $j < count($incompleteSets); $j++) {
+                            $sourceProps = [];
+                            $sourceOther = [];
+                            foreach ($incompleteSets[$j] as $c) {
+                                if (in_array($c['type'] ?? '', ['property', 'wild_property'], true)) {
+                                    $sourceProps[] = $c;
+                                } else {
+                                    $sourceOther[] = $c;
+                                }
+                            }
+
+                            while (!empty($sourceProps) && self::getSetPropertiesCount($incompleteSets[$i]) < $targetSize) {
+                                $incompleteSets[$i][] = array_shift($sourceProps);
+                            }
+
+                            $incompleteSets[$j] = array_merge($sourceProps, $sourceOther);
+
+                            if (self::getSetPropertiesCount($incompleteSets[$i]) >= $targetSize) {
+                                break;
+                            }
+                        }
+                    }
+
+                    $mergedIncomplete = [];
+                    foreach ($incompleteSets as $set) {
+                        if (empty($set)) continue;
+                        if (self::getSetPropertiesCount($set) >= $targetSize) {
+                            $fullSets[] = $set;
+                        } else if (self::getSetPropertiesCount($set) > 0) {
+                            $mergedIncomplete[] = $set;
+                        } else {
+                            // Only orphan buildings left
+                            foreach ($set as $bldg) {
+                                $player['bank'][] = $bldg;
+                                if ($state !== null) {
+                                    self::addLog($state, "🏠 {$player['name']}'s {$bldg['name']} on {$color} was moved to bank because the set was emptied.");
+                                }
+                            }
+                        }
+                    }
+                    $incompleteSets = $mergedIncomplete;
+                }
+
+                $allSets = array_merge($fullSets, $incompleteSets);
+            } else {
+                $allSets = $sets;
+            }
+
+            // Broken set check: any set that is not complete must surrender houses/hotels to bank
+            foreach ($allSets as &$set) {
+                if (!self::isCompleteSet($set, $color)) {
+                    $retained = [];
+                    foreach ($set as $c) {
+                        if (in_array($c['action'] ?? '', ['house', 'hotel'], true)) {
+                            $player['bank'][] = $c;
+                            if ($state !== null) {
+                                self::addLog($state, "🏠 {$player['name']}'s {$c['name']} on {$color} was moved to bank because the set is no longer complete.");
+                            }
+                        } else {
+                            $retained[] = $c;
+                        }
+                    }
+                    $set = $retained;
+                }
+            }
+            unset($set);
+
+            $validSets = array_values(array_filter($allSets, fn($s) => !empty($s)));
+            foreach ($validSets as $idx => $s) {
+                $key = $idx === 0 ? $color : "{$color}#" . ($idx + 1);
+                $newPropertySets[$key] = $s;
+            }
+        }
+
+        $player['property_sets'] = $newPropertySets;
+    }
+
+    public static function addPropertyCardToPlayer(array &$player, array $card, string $color, ?array &$state = null): void {
+        if (!isset(CardDefinitions::SET_RULES[$color])) {
+            throw new Exception("Invalid property color.");
+        }
+
+        $targetSize = CardDefinitions::SET_RULES[$color]['size'];
+
+        if ($card['type'] === 'wild_property') {
+            $card['current_color'] = $color;
+        }
+
+        // Find existing incomplete set for this color
+        $targetSetKey = null;
+        foreach ($player['property_sets'] as $setKey => $cards) {
+            if (self::getSetColor($setKey, $cards) === $color) {
+                if (self::getSetPropertiesCount($cards) < $targetSize) {
+                    $targetSetKey = $setKey;
+                    break;
+                }
+            }
+        }
+
+        if ($targetSetKey !== null) {
+            $player['property_sets'][$targetSetKey][] = $card;
+        } else {
+            // All existing sets of this color are full (or none exist): new set!
+            $setIndex = 1;
+            while (isset($player['property_sets'][$setIndex === 1 ? $color : "{$color}#{$setIndex}"])) {
+                $setIndex++;
+            }
+            $newKey = $setIndex === 1 ? $color : "{$color}#{$setIndex}";
+            $player['property_sets'][$newKey] = [$card];
+        }
+
+        self::reorganizePlayerProperties($player, $state);
+    }
+
+    public static function calculateRent(array $player, string $color): int {
+        $baseCol = explode('#', $color)[0];
+        $rule = CardDefinitions::SET_RULES[$baseCol] ?? null;
+        if (!$rule) return 0;
+
+        $maxRent = 0;
+        foreach ($player['property_sets'] as $setKey => $cards) {
+            if (self::getSetColor($setKey, $cards) !== $baseCol) continue;
+            if (empty($cards)) continue;
+
+            $propCount = self::getSetPropertiesCount($cards);
+            if ($propCount === 0) continue;
+
+            $rentIndex = min($propCount - 1, count($rule['rent']) - 1);
+            $rent = $rule['rent'][$rentIndex];
+
+            // If complete set, add House and Hotel bonuses
+            if ($propCount >= $rule['size']) {
+                if (self::setHasHouse($cards)) $rent += 3;
+                if (self::setHasHotel($cards)) $rent += 4;
+            }
+
+            if ($rent > $maxRent) {
+                $maxRent = $rent;
+            }
+        }
+
+        return $maxRent;
     }
 
     /**
@@ -819,7 +1032,8 @@ class GameEngine {
      */
     public static function getPropertySetValue(string $color, int $propCount, bool $hasHouse = false, bool $hasHotel = false): int {
         if ($propCount <= 0) return 0;
-        $rule = CardDefinitions::SET_RULES[$color] ?? null;
+        $baseCol = explode('#', $color)[0];
+        $rule = CardDefinitions::SET_RULES[$baseCol] ?? null;
         if (!$rule) return 0;
         $rentIndex = min($propCount - 1, count($rule['rent']) - 1);
         $val = $rule['rent'][$rentIndex];
@@ -838,7 +1052,8 @@ class GameEngine {
         foreach ($player['bank'] as $bCard) {
             $total += (int)($bCard['value'] ?? 0);
         }
-        foreach ($player['property_sets'] as $color => $pCards) {
+        foreach ($player['property_sets'] as $setKey => $pCards) {
+            $color = self::getSetColor($setKey, $pCards);
             $pCount = self::getSetPropertiesCount($pCards);
             $hasHouse = self::setHasHouse($pCards);
             $hasHotel = self::setHasHotel($pCards);
@@ -881,13 +1096,14 @@ class GameEngine {
         foreach ($payer['bank'] as $bCard) {
             $allTableCards[$bCard['id']] = ['location' => 'bank', 'card' => $bCard];
         }
-        foreach ($payer['property_sets'] as $color => $pCards) {
+        foreach ($payer['property_sets'] as $setKey => $pCards) {
+            $color = self::getSetColor($setKey, $pCards);
             foreach ($pCards as $pCard) {
                 // Exclude multi-color wild property as it does not have any monetary value
                 if (($pCard['type'] ?? '') === 'wild_property' && ((int)($pCard['value'] ?? 0) <= 0 || count($pCard['colors'] ?? []) > 2)) {
                     continue;
                 }
-                $allTableCards[$pCard['id']] = ['location' => 'property', 'color' => $color, 'card' => $pCard];
+                $allTableCards[$pCard['id']] = ['location' => 'property', 'set_key' => $setKey, 'color' => $color, 'card' => $pCard];
             }
         }
 
@@ -952,25 +1168,31 @@ class GameEngine {
                 // Add to collector bank
                 $collector['bank'][] = $c;
             } elseif ($info['location'] === 'property') {
-                $col = $info['color'];
-                // Remove from payer property set
-                $payer['property_sets'][$col] = array_values(array_filter(
-                    $payer['property_sets'][$col] ?? [],
-                    fn($pc) => $pc['id'] !== $c['id']
-                ));
-                if (empty($payer['property_sets'][$col])) {
-                    unset($payer['property_sets'][$col]);
+                $foundSetKey = null;
+                $foundIdx = null;
+                foreach ($payer['property_sets'] as $setKey => $pCards) {
+                    foreach ($pCards as $idx => $pc) {
+                        if ($pc['id'] === $c['id']) {
+                            $foundSetKey = $setKey;
+                            $foundIdx = $idx;
+                            break 2;
+                        }
+                    }
+                }
+
+                if ($foundSetKey !== null && $foundIdx !== null) {
+                    array_splice($payer['property_sets'][$foundSetKey], $foundIdx, 1);
+                    if (empty($payer['property_sets'][$foundSetKey])) {
+                        unset($payer['property_sets'][$foundSetKey]);
+                    }
                 }
 
                 // Transfer to collector
                 if (in_array($c['type'] ?? '', ['property', 'wild_property'], true)) {
                     $targetColor = $c['type'] === 'wild_property'
-                        ? ($c['current_color'] ?? $c['colors'][0] ?? $col)
-                        : ($c['group'] ?? $col);
-                    if (!isset($collector['property_sets'][$targetColor])) {
-                        $collector['property_sets'][$targetColor] = [];
-                    }
-                    $collector['property_sets'][$targetColor][] = $c;
+                        ? ($c['current_color'] ?? $c['colors'][0] ?? $info['color'] ?? '')
+                        : ($c['group'] ?? $info['color'] ?? '');
+                    self::addPropertyCardToPlayer($collector, $c, $targetColor, $state);
                 } else {
                     // House or hotel goes to collector bank as money value
                     $collector['bank'][] = $c;
@@ -978,24 +1200,8 @@ class GameEngine {
             }
         }
 
-        // Check for broken sets on payer with houses/hotels
-        foreach ($payer['property_sets'] as $col => &$setCards) {
-            if (!self::isCompleteSet($setCards, $col)) {
-                $retained = [];
-                foreach ($setCards as $sc) {
-                    if (in_array($sc['action'] ?? '', ['house', 'hotel'], true)) {
-                        $payer['bank'][] = $sc;
-                    } else {
-                        $retained[] = $sc;
-                    }
-                }
-                $setCards = $retained;
-            }
-        }
-        unset($setCards);
-        foreach ($payer['property_sets'] as $col => $sc) {
-            if (empty($sc)) unset($payer['property_sets'][$col]);
-        }
+        self::reorganizePlayerProperties($payer, $state);
+        self::reorganizePlayerProperties($collector, $state);
 
         if (empty($cardNames)) {
             self::addLog($state, "⚪ {$payer['name']} had no assets on table and paid \$0.");
@@ -1047,15 +1253,24 @@ class GameEngine {
         switch ($pending['action']) {
             case 'deal_breaker':
                 $color = $params['color'];
-                $targetSet = $target['property_sets'][$color] ?? [];
+                $setKey = $params['set_key'] ?? $color;
+                $targetSet = $target['property_sets'][$setKey] ?? $target['property_sets'][$color] ?? [];
                 if (!empty($targetSet)) {
-                    if (!isset($initiator['property_sets'][$color])) {
-                        $initiator['property_sets'][$color] = [];
+                    $setIndex = 1;
+                    while (isset($initiator['property_sets'][$setIndex === 1 ? $color : "{$color}#{$setIndex}"])) {
+                        $setIndex++;
                     }
-                    foreach ($targetSet as $stolenCard) {
-                        $initiator['property_sets'][$color][] = $stolenCard;
+                    $newKey = $setIndex === 1 ? $color : "{$color}#{$setIndex}";
+                    $initiator['property_sets'][$newKey] = $targetSet;
+
+                    unset($target['property_sets'][$setKey]);
+                    if (isset($target['property_sets'][$color]) && empty($target['property_sets'][$color])) {
+                        unset($target['property_sets'][$color]);
                     }
-                    unset($target['property_sets'][$color]);
+
+                    self::reorganizePlayerProperties($target, $state);
+                    self::reorganizePlayerProperties($initiator, $state);
+
                     $colorName = CardDefinitions::SET_RULES[$color]['name'] ?? $color;
                     self::addLog($state, "🚨 {$initiator['name']} successfully stole {$target['name']}'s full {$colorName} set with Deal Breaker!");
                 }
@@ -1064,13 +1279,16 @@ class GameEngine {
             case 'sly_deal':
                 $stolenCardId = $params['card_id'];
                 $destCol = $params['dest_color'];
+                $foundSetKey = $params['found_set_key'] ?? null;
                 $foundCol = null;
                 $foundIdx = null;
                 $stolenCard = null;
 
-                foreach ($target['property_sets'] as $col => $cards) {
+                foreach ($target['property_sets'] as $setKey => $cards) {
+                    $col = self::getSetColor($setKey, $cards);
                     foreach ($cards as $idx => $c) {
                         if ($c['id'] === $stolenCardId) {
+                            $foundSetKey = $setKey;
                             $foundCol = $col;
                             $foundIdx = $idx;
                             $stolenCard = $c;
@@ -1080,17 +1298,18 @@ class GameEngine {
                 }
 
                 if ($stolenCard) {
-                    array_splice($target['property_sets'][$foundCol], $foundIdx, 1);
-                    if (empty($target['property_sets'][$foundCol])) {
-                        unset($target['property_sets'][$foundCol]);
+                    array_splice($target['property_sets'][$foundSetKey], $foundIdx, 1);
+                    if (empty($target['property_sets'][$foundSetKey])) {
+                        unset($target['property_sets'][$foundSetKey]);
                     }
+                    self::reorganizePlayerProperties($target, $state);
+
                     if ($stolenCard['type'] === 'wild_property') {
                         $stolenCard['current_color'] = $destCol;
                     }
-                    if (!isset($initiator['property_sets'][$destCol])) {
-                        $initiator['property_sets'][$destCol] = [];
-                    }
-                    $initiator['property_sets'][$destCol][] = $stolenCard;
+                    self::addPropertyCardToPlayer($initiator, $stolenCard, $destCol, $state);
+                    self::reorganizePlayerProperties($initiator, $state);
+
                     self::addLog($state, "🕵️ {$initiator['name']} successfully stole {$stolenCard['name']} from {$target['name']} with Sly Deal!");
                 }
                 break;
@@ -1101,40 +1320,38 @@ class GameEngine {
                 $pDestCol = $params['p_dest_color'];
                 $tDestCol = $params['t_dest_color'];
 
-                $myCol = null; $myIdx = null; $myCard = null;
-                foreach ($initiator['property_sets'] as $col => $cards) {
+                $mySetKey = null; $myIdx = null; $myCard = null;
+                foreach ($initiator['property_sets'] as $setKey => $cards) {
                     foreach ($cards as $idx => $c) {
                         if ($c['id'] === $myCardId) {
-                            $myCol = $col; $myIdx = $idx; $myCard = $c;
+                            $mySetKey = $setKey; $myIdx = $idx; $myCard = $c;
                             break 2;
                         }
                     }
                 }
 
-                $targetCol = null; $targetIdx = null; $targetCard = null;
-                foreach ($target['property_sets'] as $col => $cards) {
+                $targetSetKey = null; $targetIdx = null; $targetCard = null;
+                foreach ($target['property_sets'] as $setKey => $cards) {
                     foreach ($cards as $idx => $c) {
                         if ($c['id'] === $targetCardId) {
-                            $targetCol = $col; $targetIdx = $idx; $targetCard = $c;
+                            $targetSetKey = $setKey; $targetIdx = $idx; $targetCard = $c;
                             break 2;
                         }
                     }
                 }
 
                 if ($myCard && $targetCard) {
-                    array_splice($initiator['property_sets'][$myCol], $myIdx, 1);
-                    if (empty($initiator['property_sets'][$myCol])) unset($initiator['property_sets'][$myCol]);
+                    array_splice($initiator['property_sets'][$mySetKey], $myIdx, 1);
+                    if (empty($initiator['property_sets'][$mySetKey])) unset($initiator['property_sets'][$mySetKey]);
 
-                    array_splice($target['property_sets'][$targetCol], $targetIdx, 1);
-                    if (empty($target['property_sets'][$targetCol])) unset($target['property_sets'][$targetCol]);
+                    array_splice($target['property_sets'][$targetSetKey], $targetIdx, 1);
+                    if (empty($target['property_sets'][$targetSetKey])) unset($target['property_sets'][$targetSetKey]);
 
-                    if ($targetCard['type'] === 'wild_property') $targetCard['current_color'] = $pDestCol;
-                    if (!isset($initiator['property_sets'][$pDestCol])) $initiator['property_sets'][$pDestCol] = [];
-                    $initiator['property_sets'][$pDestCol][] = $targetCard;
+                    self::addPropertyCardToPlayer($initiator, $targetCard, $pDestCol, $state);
+                    self::addPropertyCardToPlayer($target, $myCard, $tDestCol, $state);
 
-                    if ($myCard['type'] === 'wild_property') $myCard['current_color'] = $tDestCol;
-                    if (!isset($target['property_sets'][$tDestCol])) $target['property_sets'][$tDestCol] = [];
-                    $target['property_sets'][$tDestCol][] = $myCard;
+                    self::reorganizePlayerProperties($initiator, $state);
+                    self::reorganizePlayerProperties($target, $state);
 
                     self::addLog($state, "🔄 {$initiator['name']} completed Forced Deal with {$target['name']}, swapping {$myCard['name']} for {$targetCard['name']}!");
                 }
@@ -1369,7 +1586,8 @@ class GameEngine {
     public static function checkWinCondition(array &$state): void {
         foreach ($state['players'] as $pid => $player) {
             $completedCount = 0;
-            foreach ($player['property_sets'] as $color => $cards) {
+            foreach ($player['property_sets'] as $setKey => $cards) {
+                $color = self::getSetColor($setKey, $cards);
                 if (self::isCompleteSet($cards, $color)) {
                     $completedCount++;
                 }

@@ -12,7 +12,9 @@ import {
   setHasHouse,
   setHasHotel,
   calculatePlayerTableValue,
-  getSwapIconSvg
+  getSwapIconSvg,
+  getSetColor,
+  getSetPropertiesCount
 } from './cards.js';
 import { render } from './render.js';
 import { clearSession } from './game.js';
@@ -91,11 +93,13 @@ export function openCardModal(card) {
     if (card.action === 'deal_breaker') {
       const targetSets = [];
       opponents.forEach(opp => {
-        Object.entries(opp.property_sets || {}).forEach(([color, cards]) => {
+        Object.entries(opp.property_sets || {}).forEach(([setKey, cards]) => {
+          const color = getSetColor(setKey, cards);
           if (isCompleteSet(cards, color)) {
             targetSets.push({
               player: opp,
               color,
+              setKey,
               cards,
               name: `${opp.name}: ${COLOR_NAMES[color] || color} Full Set`
             });
@@ -132,7 +136,8 @@ export function openCardModal(card) {
           const chosen = targetSets[parseInt(select.value, 10)];
           executePlay(card.id, 'action', {
             target_player_id: chosen.player.id,
-            color: chosen.color
+            color: chosen.color,
+            set_key: chosen.setKey
           });
         });
         actSection.appendChild(stealBtn);
@@ -183,7 +188,8 @@ export function openCardModal(card) {
           const eligibleProps = [];
 
           if (targetOpp) {
-            Object.entries(targetOpp.property_sets || {}).forEach(([color, cards]) => {
+            Object.entries(targetOpp.property_sets || {}).forEach(([setKey, cards]) => {
+              const color = getSetColor(setKey, cards);
               if (!isCompleteSet(cards, color)) {
                 (cards || []).forEach(c => {
                   const isStandard = c.type === 'property';
@@ -192,6 +198,7 @@ export function openCardModal(card) {
                     eligibleProps.push({
                       card: c,
                       color,
+                      setKey,
                       name: `${c.name} (${COLOR_NAMES[color] || color})`
                     });
                   }
@@ -235,11 +242,12 @@ export function openCardModal(card) {
       }
     } else if (card.action === 'forced_deal') {
       const myProps = [];
-      Object.entries(myPlayer.property_sets || {}).forEach(([color, cards]) => {
+      Object.entries(myPlayer.property_sets || {}).forEach(([setKey, cards]) => {
+        const color = getSetColor(setKey, cards);
         if (!isCompleteSet(cards, color)) {
           cards.forEach(c => {
             if (c.type === 'property' || c.type === 'wild_property') {
-              myProps.push({ card: c, color, name: `${c.name} (${COLOR_NAMES[color] || color})` });
+              myProps.push({ card: c, color, setKey, name: `${c.name} (${COLOR_NAMES[color] || color})` });
             }
           });
         }
@@ -312,7 +320,8 @@ export function openCardModal(card) {
           const eligibleProps = [];
 
           if (targetOpp) {
-            Object.entries(targetOpp.property_sets || {}).forEach(([color, cards]) => {
+            Object.entries(targetOpp.property_sets || {}).forEach(([setKey, cards]) => {
+              const color = getSetColor(setKey, cards);
               if (!isCompleteSet(cards, color)) {
                 (cards || []).forEach(c => {
                   const isStandard = c.type === 'property';
@@ -321,6 +330,7 @@ export function openCardModal(card) {
                     eligibleProps.push({
                       card: c,
                       color,
+                      setKey,
                       name: `${c.name} (${COLOR_NAMES[color] || color})`
                     });
                   }
@@ -365,7 +375,8 @@ export function openCardModal(card) {
         });
       }
     } else if (card.action === 'house') {
-      const eligibleSets = Object.entries(myPlayer.property_sets || {}).filter(([color, cards]) => {
+      const eligibleSets = Object.entries(myPlayer.property_sets || {}).filter(([setKey, cards]) => {
+        const color = getSetColor(setKey, cards);
         return !['railroad', 'utility'].includes(color) && isCompleteSet(cards, color) && !setHasHouse(cards);
       });
 
@@ -377,9 +388,10 @@ export function openCardModal(card) {
       } else {
         const select = document.createElement('select');
         select.className = 'modal-select';
-        eligibleSets.forEach(([color]) => {
+        eligibleSets.forEach(([setKey, cards]) => {
+          const color = getSetColor(setKey, cards);
           const opt = document.createElement('option');
-          opt.value = color;
+          opt.value = setKey;
           opt.textContent = `Build on ${COLOR_NAMES[color] || color} Full Set (+ $3M Rent)`;
           select.appendChild(opt);
         });
@@ -389,12 +401,15 @@ export function openCardModal(card) {
         houseBtn.className = 'btn-action';
         houseBtn.textContent = '🏠 Build House (+ $3M Rent)';
         houseBtn.addEventListener('click', () => {
-          executePlay(card.id, 'action', { color: select.value });
+          const setKey = select.value;
+          const color = setKey.split('#')[0];
+          executePlay(card.id, 'action', { color, set_key: setKey });
         });
         actSection.appendChild(houseBtn);
       }
     } else if (card.action === 'hotel') {
-      const eligibleSets = Object.entries(myPlayer.property_sets || {}).filter(([color, cards]) => {
+      const eligibleSets = Object.entries(myPlayer.property_sets || {}).filter(([setKey, cards]) => {
+        const color = getSetColor(setKey, cards);
         return !['railroad', 'utility'].includes(color) && isCompleteSet(cards, color) && setHasHouse(cards) && !setHasHotel(cards);
       });
 
@@ -406,9 +421,10 @@ export function openCardModal(card) {
       } else {
         const select = document.createElement('select');
         select.className = 'modal-select';
-        eligibleSets.forEach(([color]) => {
+        eligibleSets.forEach(([setKey, cards]) => {
+          const color = getSetColor(setKey, cards);
           const opt = document.createElement('option');
-          opt.value = color;
+          opt.value = setKey;
           opt.textContent = `Build on ${COLOR_NAMES[color] || color} Set (+ $4M Rent)`;
           select.appendChild(opt);
         });
@@ -418,7 +434,9 @@ export function openCardModal(card) {
         hotelBtn.className = 'btn-action';
         hotelBtn.textContent = '🏨 Build Hotel (+ $4M Rent)';
         hotelBtn.addEventListener('click', () => {
-          executePlay(card.id, 'action', { color: select.value });
+          const setKey = select.value;
+          const color = setKey.split('#')[0];
+          executePlay(card.id, 'action', { color, set_key: setKey });
         });
         actSection.appendChild(hotelBtn);
       }
@@ -472,10 +490,21 @@ export function openCardModal(card) {
       });
       actSection.appendChild(bdayBtn);
     } else if (card.type === 'rent') {
+function getBestPropertySetCount(player, color) {
+  let maxCount = 0;
+  Object.entries(player?.property_sets || {}).forEach(([setKey, cards]) => {
+    if (getSetColor(setKey, cards) === color) {
+      const cnt = getSetPropertiesCount(cards);
+      if (cnt > maxCount) maxCount = cnt;
+    }
+  });
+  return maxCount;
+}
+
       const c1 = card.colors[0];
       const c2 = card.colors[1];
-      const count1 = (myPlayer.property_sets?.[c1] || []).length;
-      const count2 = (myPlayer.property_sets?.[c2] || []).length;
+      const count1 = getBestPropertySetCount(myPlayer, c1);
+      const count2 = getBestPropertySetCount(myPlayer, c2);
 
       const select = document.createElement('select');
       select.className = 'modal-select';
@@ -528,7 +557,7 @@ export function openCardModal(card) {
         const selColor = document.createElement('select');
         selColor.className = 'modal-select';
         Object.keys(SET_RULES).forEach(col => {
-          const count = (myPlayer.property_sets?.[col] || []).length;
+          const count = getBestPropertySetCount(myPlayer, col);
           const opt = document.createElement('option');
           opt.value = col;
           opt.textContent = `${COLOR_NAMES[col]} (You own ${count})`;
@@ -685,10 +714,10 @@ export function openInspectModal(card) {
   let isCardOnMyTable = false;
   let currentColor = null;
   if (myPlayer && myPlayer.property_sets) {
-    for (const [col, cards] of Object.entries(myPlayer.property_sets)) {
+    for (const [setKey, cards] of Object.entries(myPlayer.property_sets)) {
       if ((cards || []).some(c => c.id === card.id)) {
         isCardOnMyTable = true;
-        currentColor = col;
+        currentColor = getSetColor(setKey, cards);
         break;
       }
     }
@@ -765,12 +794,13 @@ export function showWinnerAnnouncementModal(gameState) {
 
       const completedSets = [];
       const incompleteSets = [];
-      Object.entries(p.property_sets || {}).forEach(([color, cards]) => {
+      Object.entries(p.property_sets || {}).forEach(([setKey, cards]) => {
         if (!cards || cards.length === 0) return;
+        const color = getSetColor(setKey, cards);
         if (isCompleteSet(cards, color)) {
-          completedSets.push({ color, cards });
+          completedSets.push({ color, setKey, cards });
         } else {
-          incompleteSets.push({ color, cards });
+          incompleteSets.push({ color, setKey, cards });
         }
       });
 
@@ -1302,12 +1332,13 @@ export function renderPaymentModal(pending, myPlayer) {
   // Gather all table cards for local player eligible for payment
   const bankCards = myPlayer.bank || [];
   const propertyCards = [];
-  Object.entries(myPlayer.property_sets || {}).forEach(([color, cards]) => {
+  Object.entries(myPlayer.property_sets || {}).forEach(([setKey, cards]) => {
+    const color = getSetColor(setKey, cards);
     (cards || []).forEach(c => {
       // Exclude multi-color wild property as it does not have any monetary value
       const isMultiColorWild = c.type === 'wild_property' && (!c.value || c.value <= 0 || (c.colors && c.colors.length > 2));
       if (!isMultiColorWild) {
-        propertyCards.push({ color, card: c });
+        propertyCards.push({ color, setKey, card: c });
       }
     });
   });

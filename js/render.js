@@ -11,6 +11,7 @@ import {
   createMiniPropertyCard,
   createMiniBankBill,
   getSetPropertiesCount,
+  getSetColor,
   isCompleteSet,
   setHasHouse,
   setHasHotel,
@@ -480,8 +481,9 @@ export function renderPropertySets(propertySets, container, isOwner = false, isM
     return;
   }
 
-  entries.forEach(([color, cards]) => {
+  entries.forEach(([setKey, cards]) => {
     if (!cards || cards.length === 0) return;
+    const color = getSetColor(setKey, cards);
     const group = document.createElement('div');
     group.className = 'property-group';
 
