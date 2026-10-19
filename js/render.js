@@ -322,6 +322,15 @@ export function renderLobbyView() {
   document.getElementById('btn-end-turn')?.classList.add('hidden');
   document.getElementById('btn-leave-game')?.classList.remove('hidden');
 
+  const roomInfo = document.getElementById('lobby-room-info');
+  if (roomInfo && state.currentGameId) {
+    roomInfo.classList.remove('hidden');
+    const codeEl = document.getElementById('lobby-room-code');
+    if (codeEl) codeEl.textContent = state.currentGameId;
+    const roomInput = document.getElementById('input-room-code');
+    if (roomInput && !roomInput.value) roomInput.value = state.currentGameId;
+  }
+
   const playersList = document.getElementById('lobby-players');
   playersList.innerHTML = '';
 

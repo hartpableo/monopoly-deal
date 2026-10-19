@@ -4,6 +4,8 @@ import { state, saveSession, purgeSessionStorage } from './state.js';
 import { apiRequest } from './api.js';
 import { render } from './render.js';
 import { initAudioUnlock } from './audio.js';
+import { copyToClipboard } from './utils.js';
+import { showToast } from './ui.js';
 import {
   stopVoiceChat,
   toggleMic,
@@ -17,6 +19,32 @@ import {
   closeExcessCardsModal,
   closePaymentModal
 } from './modals.js';
+
+let copyTimeout = null;
+
+export async function handleCopyGameId() {
+  const gameId = state.currentGameId || document.getElementById('lobby-room-code')?.textContent?.trim();
+  if (!gameId || gameId === '------') return;
+
+  const success = await copyToClipboard(gameId);
+  if (!success) {
+    showToast('Failed to copy', 'Please copy manually.', '⚠️', 'danger');
+    return;
+  }
+
+  const copyBtn = document.getElementById('btn-copy-game-id');
+  if (copyBtn) {
+    copyBtn.innerHTML = '<span class="copy-icon">✓</span> <span class="copy-text">Copied!</span>';
+    copyBtn.classList.add('copied');
+    if (copyTimeout) clearTimeout(copyTimeout);
+    copyTimeout = setTimeout(() => {
+      copyBtn.innerHTML = '<span class="copy-icon">📋</span> <span class="copy-text">Copy ID</span>';
+      copyBtn.classList.remove('copied');
+    }, 2000);
+  }
+
+  showToast('Game ID Copied!', gameId, '📋', 'info');
+}
 
 export function setupLobbyEvents() {
   document.getElementById('btn-create-game').addEventListener('click', async () => {
@@ -83,6 +111,21 @@ export function setupLobbyEvents() {
       }
     });
   }
+
+  const copyBtn = document.getElementById('btn-copy-game-id');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', handleCopyGameId);
+  }
+
+  const roomCodeBox = document.getElementById('lobby-room-code');
+  if (roomCodeBox) {
+    roomCodeBox.addEventListener('click', handleCopyGameId);
+  }
+
+  const roomBadge = document.getElementById('room-badge');
+  if (roomBadge) {
+    roomBadge.addEventListener('click', handleCopyGameId);
+  }
 }
 
 export function clearSession() {
@@ -104,6 +147,9 @@ export function showLobby() {
   document.getElementById('btn-toggle-mic')?.classList.add('hidden');
   document.getElementById('btn-end-turn')?.classList.add('hidden');
   document.getElementById('btn-leave-game')?.classList.add('hidden');
+  document.getElementById('lobby-room-info')?.classList.add('hidden');
+  const codeEl = document.getElementById('lobby-room-code');
+  if (codeEl) codeEl.textContent = '------';
   const playersList = document.getElementById('lobby-players');
   if (playersList) {
     playersList.innerHTML = '<li class="lobby-empty-hint">Create or join a room to see players.</li>';
@@ -270,6 +316,16 @@ export function initApp() {
         localStorage.removeItem('md_player_name');
       }
     });
+  }
+
+  // Pre-fill room code from URL query parameter (e.g. ?room=ABC123 or ?game_id=ABC123)
+  const roomInput = document.getElementById('input-room-code');
+  if (roomInput) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room') || urlParams.get('game_id');
+    if (roomParam && roomParam.trim()) {
+      roomInput.value = roomParam.trim().toUpperCase();
+    }
   }
 
   if (state.currentGameId && state.currentPlayerData) {

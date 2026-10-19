@@ -20,7 +20,7 @@
 <header>
   <div class="header-left">
     <div class="logo">🎩 Monopoly Deal</div>
-    <div id="room-badge" class="badge badge-room hidden">Room: <span id="room-code-display">------</span></div>
+    <div id="room-badge" class="badge badge-room hidden" title="Click to copy Game ID" role="button" tabindex="0">Room: <span id="room-code-display">------</span> <button id="btn-copy-room-badge" class="badge-copy-btn" type="button" title="Copy Game ID" aria-label="Copy Game ID">📋</button></div>
   </div>
 
   <div class="header-status">
@@ -35,6 +35,19 @@
   <!-- LOBBY SCREEN -->
   <div id="lobby-view" class="lobby-card">
     <h2>Game Lobby</h2>
+
+    <div id="lobby-room-info" class="lobby-room-info hidden">
+      <div class="lobby-room-label">Current Game ID</div>
+      <div class="lobby-room-code-box">
+        <div id="lobby-room-code" class="room-code-display" title="Click to copy Game ID">------</div>
+        <button id="btn-copy-game-id" class="btn-primary btn-copy-game-id" type="button" title="Copy Game ID">
+          <span class="copy-icon">📋</span>
+          <span class="copy-text">Copy ID</span>
+        </button>
+      </div>
+      <div class="lobby-share-hint">Share this Game ID with friends so they can join!</div>
+    </div>
+
     <div class="form-group">
       <label for="input-player-name">Your Name</label>
       <input type="text" id="input-player-name" placeholder="Enter your name" maxlength="16" autocomplete="off" required>
