@@ -1299,12 +1299,16 @@ export function renderPaymentModal(pending, myPlayer) {
   // STEP 2: Payment Card Selection View
   if (title) title.textContent = '💰 Payment Demanded';
 
-  // Gather all table cards for local player
+  // Gather all table cards for local player eligible for payment
   const bankCards = myPlayer.bank || [];
   const propertyCards = [];
   Object.entries(myPlayer.property_sets || {}).forEach(([color, cards]) => {
     (cards || []).forEach(c => {
-      propertyCards.push({ color, card: c });
+      // Exclude multi-color wild property as it does not have any monetary value
+      const isMultiColorWild = c.type === 'wild_property' && (!c.value || c.value <= 0 || (c.colors && c.colors.length > 2));
+      if (!isMultiColorWild) {
+        propertyCards.push({ color, card: c });
+      }
     });
   });
 

@@ -876,13 +876,17 @@ class GameEngine {
         $collector = &$state['players'][$collectorId];
         $amountDue = (int)$pending['payers'][$playerId]['amount_due'];
 
-        // Gather all cards on payer's table (bank + properties)
+        // Gather all cards on payer's table (bank + properties) eligible for payment
         $allTableCards = [];
         foreach ($payer['bank'] as $bCard) {
             $allTableCards[$bCard['id']] = ['location' => 'bank', 'card' => $bCard];
         }
         foreach ($payer['property_sets'] as $color => $pCards) {
             foreach ($pCards as $pCard) {
+                // Exclude multi-color wild property as it does not have any monetary value
+                if (($pCard['type'] ?? '') === 'wild_property' && ((int)($pCard['value'] ?? 0) <= 0 || count($pCard['colors'] ?? []) > 2)) {
+                    continue;
+                }
                 $allTableCards[$pCard['id']] = ['location' => 'property', 'color' => $color, 'card' => $pCard];
             }
         }
@@ -901,6 +905,13 @@ class GameEngine {
             }
             $seen[$cid] = true;
             if (!isset($allTableCards[$cid])) {
+                foreach ($payer['property_sets'] as $pCards) {
+                    foreach ($pCards as $pCard) {
+                        if ($pCard['id'] === $cid && ($pCard['type'] ?? '') === 'wild_property' && ((int)($pCard['value'] ?? 0) <= 0 || count($pCard['colors'] ?? []) > 2)) {
+                            throw new Exception("Multi-Color Wild Property cannot be used for payment as it has no monetary value.");
+                        }
+                    }
+                }
                 throw new Exception("Card {$cid} is not on your table.");
             }
             $info = $allTableCards[$cid];
