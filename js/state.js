@@ -21,6 +21,9 @@ export const state = {
   previousPendingPayment: null,
   hasShownWinnerModal: false,
   lastSeenExcessNotifTimestamp: 0,
+  lastRenderedPaymentSignature: null,
+  lastRenderedPendingActionSignature: null,
+  lastRenderedPaymentStep: null,
 
   // WebRTC Voice Chat State
   localStream: null,
@@ -51,4 +54,7 @@ export function purgeSessionStorage() {
   state.currentGameId = null;
   state.currentPlayerData = null;
   state.currentGameState = null;
+  state.lastRenderedPaymentSignature = null;
+  state.lastRenderedPendingActionSignature = null;
+  state.lastRenderedPaymentStep = null;
 }

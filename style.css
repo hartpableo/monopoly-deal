@@ -1772,6 +1772,7 @@ main {
   justify-content: center;
   z-index: 100;
   backdrop-filter: blur(2px);
+  overscroll-behavior: contain;
 }
 
 .modal-content {
@@ -1781,10 +1782,36 @@ main {
   padding: 22px;
   max-width: 440px;
   width: 92%;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
   display: flex;
   flex-direction: column;
   gap: 16px;
   box-shadow: 8px 8px 0px var(--ink);
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 7px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  border: 1.5px solid var(--ink);
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .modal-card-dialog {
@@ -1873,7 +1900,10 @@ main {
 .modal-payment-dialog {
   max-width: 500px;
   max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .payment-modal-body {
@@ -2229,6 +2259,11 @@ main {
 ======================================================== */
 .modal-excess-dialog {
   max-width: 460px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .excess-modal-body {
@@ -3720,7 +3755,10 @@ button,
   padding: 20px;
   box-shadow: 6px 6px 0px var(--ink);
   max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .winner-celebration-header {

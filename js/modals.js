@@ -47,6 +47,8 @@ export function openCardModal(card) {
     return;
   }
   const modal = document.getElementById('action-modal');
+  const dialog = modal?.querySelector('.modal-content');
+  if (dialog) dialog.scrollTop = 0;
   const title = document.getElementById('modal-card-title');
   const actionsContainer = document.getElementById('modal-actions-container');
 
@@ -671,7 +673,12 @@ function getBestPropertySetCount(player, color) {
 }
 
 export function closeModal() {
-  document.getElementById('action-modal').classList.add('hidden');
+  const modal = document.getElementById('action-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    const dialog = modal.querySelector('.modal-content');
+    if (dialog) dialog.scrollTop = 0;
+  }
 }
 
 export async function executePlay(cardId, targetType, params = {}) {
@@ -696,6 +703,8 @@ export async function executePlay(cardId, targetType, params = {}) {
 ======================================================== */
 export function openMoveWildcardModal(card, currentColor) {
   const modal = document.getElementById('move-wild-modal');
+  const dialog = modal?.querySelector('.modal-content');
+  if (dialog) dialog.scrollTop = 0;
   const title = document.getElementById('move-wild-title');
   const preview = document.getElementById('move-wild-preview');
   const desc = document.getElementById('move-wild-desc');
@@ -762,7 +771,10 @@ export function openMoveWildcardModal(card, currentColor) {
     options.appendChild(grid);
   }
 
-  const handleClose = () => modal.classList.add('hidden');
+  const handleClose = () => {
+    modal.classList.add('hidden');
+    if (dialog) dialog.scrollTop = 0;
+  };
   cancelBtn.onclick = handleClose;
   closeX.onclick = handleClose;
 
@@ -774,6 +786,8 @@ export function openMoveWildcardModal(card, currentColor) {
 ======================================================== */
 export function openInspectModal(card) {
   const modal = document.getElementById('inspect-modal');
+  const dialog = modal?.querySelector('.modal-content');
+  if (dialog) dialog.scrollTop = 0;
   const title = document.getElementById('inspect-card-title');
   const preview = document.getElementById('inspect-card-preview');
 
@@ -828,7 +842,12 @@ export function openInspectModal(card) {
 }
 
 export function closeInspectModal() {
-  document.getElementById('inspect-modal').classList.add('hidden');
+  const modal = document.getElementById('inspect-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    const dialog = modal.querySelector('.modal-content');
+    if (dialog) dialog.scrollTop = 0;
+  }
 }
 
 /* ========================================================
@@ -837,6 +856,8 @@ export function closeInspectModal() {
 export function showWinnerAnnouncementModal(gameState) {
   const modal = document.getElementById('winner-modal');
   if (!modal || !gameState) return;
+  const dialog = modal.querySelector('.modal-content');
+  if (dialog) dialog.scrollTop = 0;
 
   const winnerId = gameState.winner_id;
   const winner = gameState.players?.[winnerId] || { name: 'Player' };
@@ -977,9 +998,16 @@ export function showWinnerAnnouncementModal(gameState) {
 ======================================================== */
 export function closePaymentModal() {
   const modal = document.getElementById('payment-modal');
-  if (modal) modal.classList.add('hidden');
+  if (modal) {
+    modal.classList.add('hidden');
+    const dialog = modal.querySelector('.modal-content');
+    if (dialog) dialog.scrollTop = 0;
+  }
   state.paymentPromptError = null;
   state.actionPromptError = null;
+  state.lastRenderedPaymentSignature = null;
+  state.lastRenderedPendingActionSignature = null;
+  state.lastRenderedPaymentStep = null;
 }
 
 function getSlyDealDetails(pendingAction) {
@@ -1078,6 +1106,18 @@ export function renderPendingActionModal(pendingAction, myPlayer) {
     state.currentPendingActionId = stepKey;
     state.actionPromptError = null;
   }
+
+  const actionSignature = `action_${stepKey}_${pendingAction.initiator_id}_${pendingAction.current_respondent_id}_${state.actionPromptError || ''}_${state.isSubmittingPayment}`;
+  const isCurrentlyOpen = !modal.classList.contains('hidden');
+  if (isCurrentlyOpen && state.lastRenderedPendingActionSignature === actionSignature) {
+    return;
+  }
+
+  const dialog = modal.querySelector('.modal-content');
+  const prevScrollTop = dialog ? dialog.scrollTop : 0;
+  state.lastRenderedPendingActionSignature = actionSignature;
+  state.lastRenderedPaymentSignature = null;
+  state.lastRenderedPaymentStep = null;
 
   const hasJustSayNo = (myPlayer.hand || []).some(c => c.action === 'just_say_no');
   const isInitiator = (myPlayer.id === pendingAction.initiator_id);
@@ -1287,6 +1327,9 @@ export function renderPendingActionModal(pendingAction, myPlayer) {
   }
 
   modal.classList.remove('hidden');
+  if (dialog) {
+    dialog.scrollTop = (isCurrentlyOpen && prevScrollTop > 0) ? prevScrollTop : 0;
+  }
 }
 
 /* ========================================================
@@ -1297,6 +1340,10 @@ export function renderPaymentModal(pending, myPlayer) {
   const title = document.getElementById('payment-modal-title');
   const body = document.getElementById('payment-modal-body');
   if (!modal || !body) return;
+
+  const dialog = modal.querySelector('.modal-content');
+  const prevScrollTop = dialog ? dialog.scrollTop : 0;
+  const isCurrentlyOpen = !modal.classList.contains('hidden');
 
   const myPayerInfo = pending.payers?.[myPlayer.id];
   const isCollector = (pending.collector_id === myPlayer.id);
@@ -1317,6 +1364,16 @@ export function renderPaymentModal(pending, myPlayer) {
 
   // SUB-FLOW: Collector challenged by payer's Just Say No
   if (isCollector && challengedPayer) {
+    const collectorSignature = `collector_${challengedPayer.id}_${challengedPayer.jsn_count}_${state.paymentPromptError || ''}_${state.isSubmittingPayment}`;
+    if (isCurrentlyOpen && state.lastRenderedPaymentSignature === collectorSignature) {
+      return;
+    }
+
+    const isStepTransition = state.lastRenderedPaymentStep !== 'collector';
+    state.lastRenderedPaymentSignature = collectorSignature;
+    state.lastRenderedPaymentStep = 'collector';
+    state.lastRenderedPendingActionSignature = null;
+
     if (title) title.textContent = '🛑 Just Say No Played!';
     body.innerHTML = `
       <div class="payment-alert-box" style="background: #fee2e2; border-color: #dc2626;">
@@ -1414,6 +1471,9 @@ export function renderPaymentModal(pending, myPlayer) {
     }
 
     modal.classList.remove('hidden');
+    if (dialog) {
+      dialog.scrollTop = (!isStepTransition && prevScrollTop > 0) ? prevScrollTop : 0;
+    }
     return;
   }
 
@@ -1424,6 +1484,8 @@ export function renderPaymentModal(pending, myPlayer) {
     state.paymentStep = 'prompt';
     state.paymentPromptError = null;
     state.selectedPaymentCardIds.clear();
+    state.lastRenderedPaymentSignature = null;
+    state.lastRenderedPaymentStep = null;
   }
 
   const amountDue = myPayerInfo.amount_due;
@@ -1431,6 +1493,16 @@ export function renderPaymentModal(pending, myPlayer) {
 
   // STEP 1: Prompt player first (Proceed with Payment or Use "Just Say No")
   if (state.paymentStep === 'prompt') {
+    const promptSignature = `prompt_${paymentKey}_${amountDue}_${isPayerCountered}_${hasJustSayNo}_${state.paymentPromptError || ''}_${state.isSubmittingPayment}`;
+    if (isCurrentlyOpen && state.lastRenderedPaymentSignature === promptSignature) {
+      return;
+    }
+
+    const isStepTransition = state.lastRenderedPaymentStep !== 'prompt';
+    state.lastRenderedPaymentSignature = promptSignature;
+    state.lastRenderedPaymentStep = 'prompt';
+    state.lastRenderedPendingActionSignature = null;
+
     if (title) title.textContent = isPayerCountered ? '⚡ Counter Just Say No!' : '⚡ Action Response Demanded';
 
     const promptAlertTitle = isPayerCountered ? 'Counter Just Say No Played!' : 'Action Card Used Against You!';
@@ -1525,6 +1597,9 @@ export function renderPaymentModal(pending, myPlayer) {
     }
 
     modal.classList.remove('hidden');
+    if (dialog) {
+      dialog.scrollTop = (!isStepTransition && prevScrollTop > 0) ? prevScrollTop : 0;
+    }
     return;
   }
 
@@ -1566,41 +1641,73 @@ export function renderPaymentModal(pending, myPlayer) {
     existingIds.forEach(id => state.selectedPaymentCardIds.add(id));
   }
 
-  // Calculate selected total using cards' individual values
-  let selectedBankTotal = 0;
-  bankCards.forEach(c => {
-    if (state.selectedPaymentCardIds.has(c.id)) {
-      selectedBankTotal += (c.value || 0);
-    }
-  });
-
-  let selectedPropTotal = 0;
-  propertyCards.forEach(item => {
-    if (state.selectedPaymentCardIds.has(item.card.id)) {
-      selectedPropTotal += (item.card.value || 0);
-    }
-  });
-
-  const selectedTotal = selectedBankTotal + selectedPropTotal;
-
-  // Check validity
-  let isValid = false;
-  let guideText = '';
-  let payBtnText = '';
-
-  if (totalTableValue === 0) {
-    isValid = (state.selectedPaymentCardIds.size === 0);
-    guideText = 'You have no cards in play on your table. In Monopoly Deal rules, you do not pay from your hand, so you pay $0.';
-    payBtnText = 'Clear Debt ($0 - No Assets)';
-  } else if (totalTableValue <= amountDue) {
-    isValid = (state.selectedPaymentCardIds.size === totalTableCards);
-    guideText = `You cannot cover the full $${amountDue}M debt. You must surrender all cards on your table ($${totalTableValue}M).`;
-    payBtnText = `Surrender All Cards ($${totalTableValue}M)`;
-  } else {
-    isValid = (selectedTotal >= amountDue);
-    guideText = `Select cards from your Bank or Properties totaling at least $${amountDue}M. (No change is given for overpayment).`;
-    payBtnText = `Pay Selected Cards ($${selectedTotal}M / $${amountDue}M)`;
+  const paySignature = `pay_${paymentKey}_${amountDue}_${totalTableValue}_${bankCards.map(c => `${c.id}:${c.value}`).join(';')}_${propertyCards.map(p => `${p.card.id}:${p.card.value}`).join(';')}_${state.isSubmittingPayment}`;
+  if (isCurrentlyOpen && state.lastRenderedPaymentSignature === paySignature) {
+    return;
   }
+
+  const isStepTransition = state.lastRenderedPaymentStep !== 'pay';
+  state.lastRenderedPaymentSignature = paySignature;
+  state.lastRenderedPaymentStep = 'pay';
+  state.lastRenderedPendingActionSignature = null;
+
+  const calculateSelectionTotals = () => {
+    let selBank = 0;
+    bankCards.forEach(c => {
+      if (state.selectedPaymentCardIds.has(c.id)) selBank += (c.value || 0);
+    });
+    let selProp = 0;
+    propertyCards.forEach(item => {
+      if (state.selectedPaymentCardIds.has(item.card.id)) selProp += (item.card.value || 0);
+    });
+    const selTotal = selBank + selProp;
+
+    let valid = false;
+    let guide = '';
+    let btnText = '';
+
+    if (totalTableValue === 0) {
+      valid = (state.selectedPaymentCardIds.size === 0);
+      guide = 'You have no cards in play on your table. In Monopoly Deal rules, you do not pay from your hand, so you pay $0.';
+      btnText = 'Clear Debt ($0 - No Assets)';
+    } else if (totalTableValue <= amountDue) {
+      valid = (state.selectedPaymentCardIds.size === totalTableCards);
+      guide = `You cannot cover the full $${amountDue}M debt. You must surrender all cards on your table ($${totalTableValue}M).`;
+      btnText = `Surrender All Cards ($${totalTableValue}M)`;
+    } else {
+      valid = (selTotal >= amountDue);
+      guide = `Select cards from your Bank or Properties totaling at least $${amountDue}M. (No change is given for overpayment).`;
+      btnText = `Pay Selected Cards ($${selTotal}M / $${amountDue}M)`;
+    }
+
+    return { selTotal, valid, guide, btnText };
+  };
+
+  const updateSelectionUI = () => {
+    const { selTotal, valid, guide, btnText } = calculateSelectionTotals();
+    const selValEl = document.getElementById('payment-selected-stat-value');
+    if (selValEl) {
+      selValEl.textContent = `$${selTotal}M`;
+      selValEl.className = `payment-stat-value ${valid ? 'is-valid' : 'is-invalid'}`;
+    }
+    const guideEl = document.getElementById('payment-guide-text-msg');
+    if (guideEl) {
+      guideEl.textContent = guide;
+    }
+    const subBtn = document.getElementById('btn-payment-submit');
+    if (subBtn) {
+      subBtn.disabled = !valid || state.isSubmittingPayment;
+      if (!state.isSubmittingPayment) {
+        subBtn.textContent = btnText;
+      }
+    }
+  };
+
+  const initialTotals = calculateSelectionTotals();
+  const selectedTotal = initialTotals.selTotal;
+  const isValid = initialTotals.valid;
+  const guideText = initialTotals.guide;
+  const payBtnText = initialTotals.btnText;
 
   // Render HTML
   body.innerHTML = `
@@ -1626,7 +1733,7 @@ export function renderPaymentModal(pending, myPlayer) {
       </div>
       <div class="payment-stat-card">
         <div class="payment-stat-label">Selected</div>
-        <div class="payment-stat-value ${isValid ? 'is-valid' : 'is-invalid'}">$${selectedTotal}M</div>
+        <div id="payment-selected-stat-value" class="payment-stat-value ${isValid ? 'is-valid' : 'is-invalid'}">$${selectedTotal}M</div>
       </div>
       <div class="payment-stat-card">
         <div class="payment-stat-label">On Table</div>
@@ -1634,7 +1741,7 @@ export function renderPaymentModal(pending, myPlayer) {
       </div>
     </div>
 
-    <div class="payment-guide-text">${guideText}</div>
+    <div id="payment-guide-text-msg" class="payment-guide-text">${guideText}</div>
 
     ${bankCards.length > 0 ? `
       <div class="payment-section">
@@ -1696,7 +1803,11 @@ export function renderPaymentModal(pending, myPlayer) {
         } else {
           state.selectedPaymentCardIds.add(c.id);
         }
-        renderPaymentModal(pending, myPlayer);
+        const isSel = state.selectedPaymentCardIds.has(c.id);
+        cardEl.classList.toggle('is-selected', isSel);
+        const cb = cardEl.querySelector('.payment-checkbox');
+        if (cb) cb.textContent = isSel ? '✓' : '';
+        updateSelectionUI();
       });
       bankGrid.appendChild(cardEl);
     });
@@ -1729,7 +1840,11 @@ export function renderPaymentModal(pending, myPlayer) {
         } else {
           state.selectedPaymentCardIds.add(c.id);
         }
-        renderPaymentModal(pending, myPlayer);
+        const isSel = state.selectedPaymentCardIds.has(c.id);
+        cardEl.classList.toggle('is-selected', isSel);
+        const cb = cardEl.querySelector('.payment-checkbox');
+        if (cb) cb.textContent = isSel ? '✓' : '';
+        updateSelectionUI();
       });
       propGrid.appendChild(cardEl);
     });
@@ -1739,7 +1854,8 @@ export function renderPaymentModal(pending, myPlayer) {
   const submitBtn = document.getElementById('btn-payment-submit');
   if (submitBtn) {
     submitBtn.addEventListener('click', async () => {
-      if (!isValid || state.isSubmittingPayment) return;
+      const { valid } = calculateSelectionTotals();
+      if (!valid || state.isSubmittingPayment) return;
       state.isSubmittingPayment = true;
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting Payment...';
@@ -1796,6 +1912,9 @@ export function renderPaymentModal(pending, myPlayer) {
   }
 
   modal.classList.remove('hidden');
+  if (dialog) {
+    dialog.scrollTop = (!isStepTransition && prevScrollTop > 0) ? prevScrollTop : 0;
+  }
 }
 
 /* ========================================================
@@ -1803,7 +1922,11 @@ export function renderPaymentModal(pending, myPlayer) {
 ======================================================== */
 export function closeExcessCardsModal() {
   const modal = document.getElementById('excess-cards-modal');
-  if (modal) modal.classList.add('hidden');
+  if (modal) {
+    modal.classList.add('hidden');
+    const dialog = modal.querySelector('.modal-content');
+    if (dialog) dialog.scrollTop = 0;
+  }
 }
 
 export function showExcessCardsModal(notif) {
@@ -1811,6 +1934,9 @@ export function showExcessCardsModal(notif) {
   const desc = document.getElementById('excess-cards-desc');
   const list = document.getElementById('excess-cards-list');
   if (!modal || !desc || !list) return;
+
+  const dialog = modal.querySelector('.modal-content');
+  if (dialog) dialog.scrollTop = 0;
 
   desc.innerHTML = `You had <strong>${notif.initial_count} cards</strong> in hand when your turn ended (limit is 7). <strong>${notif.count} card(s)</strong> were randomly selected and returned to the draw deck:`;
   list.innerHTML = '';
