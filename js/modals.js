@@ -11,7 +11,6 @@ import {
   isCompleteSet,
   setHasHouse,
   setHasHotel,
-  getPropertySetValue,
   calculatePlayerTableValue,
   getSwapIconSvg
 } from './cards.js';
@@ -1311,8 +1310,8 @@ export function renderPaymentModal(pending, myPlayer) {
 
   const totalTableCards = bankCards.length + propertyCards.length;
   const bankTotal = bankCards.reduce((acc, c) => acc + (c.value || 0), 0);
-  const totalTableValue = calculatePlayerTableValue(myPlayer);
-  const propTotal = totalTableValue - bankTotal;
+  const propTotal = propertyCards.reduce((acc, item) => acc + (item.card.value || 0), 0);
+  const totalTableValue = bankTotal + propTotal;
 
   // Prune any selected IDs that no longer exist on table
   const existingIds = new Set([
@@ -1330,35 +1329,19 @@ export function renderPaymentModal(pending, myPlayer) {
     existingIds.forEach(id => state.selectedPaymentCardIds.add(id));
   }
 
-  // Calculate selected total with set-level property valuation
+  // Calculate selected total using cards' individual values
   let selectedBankTotal = 0;
-  const selectedPropsByColor = {};
-
   bankCards.forEach(c => {
     if (state.selectedPaymentCardIds.has(c.id)) {
       selectedBankTotal += (c.value || 0);
     }
   });
 
+  let selectedPropTotal = 0;
   propertyCards.forEach(item => {
     if (state.selectedPaymentCardIds.has(item.card.id)) {
-      const col = item.color;
-      if (!selectedPropsByColor[col]) {
-        selectedPropsByColor[col] = { count: 0, hasHouse: false, hasHotel: false };
-      }
-      if (item.card.type === 'property' || item.card.type === 'wild_property') {
-        selectedPropsByColor[col].count++;
-      } else if (item.card.action === 'house') {
-        selectedPropsByColor[col].hasHouse = true;
-      } else if (item.card.action === 'hotel') {
-        selectedPropsByColor[col].hasHotel = true;
-      }
+      selectedPropTotal += (item.card.value || 0);
     }
-  });
-
-  let selectedPropTotal = 0;
-  Object.entries(selectedPropsByColor).forEach(([col, data]) => {
-    selectedPropTotal += getPropertySetValue(col, data.count, data.hasHouse, data.hasHotel);
   });
 
   const selectedTotal = selectedBankTotal + selectedPropTotal;
@@ -1429,7 +1412,7 @@ export function renderPaymentModal(pending, myPlayer) {
     ${propertyCards.length > 0 ? `
       <div class="payment-section">
         <div class="payment-section-heading">
-          <span>Properties on Table (Valued by Set Rent Scale)</span>
+          <span>Properties on Table</span>
           <span>$${propTotal}M Available</span>
         </div>
         <div class="payment-cards-grid" id="payment-prop-grid"></div>
@@ -1494,7 +1477,10 @@ export function renderPaymentModal(pending, myPlayer) {
       cardEl.className = `payment-selectable-card ${isSelected ? 'is-selected' : ''}`;
       cardEl.innerHTML = `
         <div class="payment-card-badge">
-          <span class="payment-card-val">${COLOR_NAMES[color] || color}</span>
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <span class="payment-card-val">$${c.value || 0}M</span>
+            <span class="payment-card-color-tag">${escapeHtml(COLOR_NAMES[color] || color)}</span>
+          </div>
           <div class="payment-checkbox">${isSelected ? '✓' : ''}</div>
         </div>
         <div class="payment-card-name">${escapeHtml(c.name)}</div>

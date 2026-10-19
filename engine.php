@@ -887,7 +887,10 @@ class GameEngine {
             }
         }
 
-        $totalTableValue = self::calculatePlayerTableValue($payer);
+        $totalTableValue = 0;
+        foreach ($allTableCards as $info) {
+            $totalTableValue += (int)($info['card']['value'] ?? 0);
+        }
 
         // Validate selected cards
         $selectedCards = [];
@@ -904,32 +907,11 @@ class GameEngine {
             $selectedCards[] = $info;
         }
 
-        // Calculate selected value with set-level property valuation
-        $selectedBankTotal = 0;
-        $selectedPropsByColor = [];
+        // Calculate selected value with cards' individual values
+        $selectedTotal = 0;
         foreach ($selectedCards as $info) {
-            if ($info['location'] === 'bank') {
-                $selectedBankTotal += (int)($info['card']['value'] ?? 0);
-            } elseif ($info['location'] === 'property') {
-                $col = $info['color'];
-                if (!isset($selectedPropsByColor[$col])) {
-                    $selectedPropsByColor[$col] = ['count' => 0, 'has_house' => false, 'has_hotel' => false];
-                }
-                $c = $info['card'];
-                if (in_array($c['type'] ?? '', ['property', 'wild_property'], true)) {
-                    $selectedPropsByColor[$col]['count']++;
-                } elseif (($c['action'] ?? '') === 'house') {
-                    $selectedPropsByColor[$col]['has_house'] = true;
-                } elseif (($c['action'] ?? '') === 'hotel') {
-                    $selectedPropsByColor[$col]['has_hotel'] = true;
-                }
-            }
+            $selectedTotal += (int)($info['card']['value'] ?? 0);
         }
-        $selectedPropTotal = 0;
-        foreach ($selectedPropsByColor as $col => $data) {
-            $selectedPropTotal += self::getPropertySetValue($col, $data['count'], $data['has_house'], $data['has_hotel']);
-        }
-        $selectedTotal = $selectedBankTotal + $selectedPropTotal;
 
         // Rule verification
         if ($totalTableValue === 0) {

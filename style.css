@@ -2025,6 +2025,17 @@ main {
   font-weight: 900;
   font-size: 0.75rem;
   color: var(--ink);
+  flex-shrink: 0;
+}
+
+.payment-card-color-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .payment-checkbox {
