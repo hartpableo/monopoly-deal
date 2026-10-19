@@ -20,6 +20,25 @@ import { render } from './render.js';
 import { clearSession } from './game.js';
 
 /* ========================================================
+   DEAL PROPERTY BADGE HELPER
+======================================================== */
+export function renderDealPropertyBadge(colorKey, cardName) {
+  const normalizedColor = (colorKey || 'utility').toLowerCase();
+  const hex = COLOR_HEX[normalizedColor] || '#64748b';
+  const colorName = COLOR_NAMES[normalizedColor] || normalizedColor;
+  const textCol = (normalizedColor === 'yellow' || normalizedColor === 'light_blue') ? '#0f172a' : '#ffffff';
+
+  return `
+    <div class="deal-card-badge" style="border-left: 6px solid ${hex};">
+      <span class="deal-card-color-pill" style="background: ${hex}; color: ${textCol};">
+        ${escapeHtml(colorName)}
+      </span>
+      <span class="deal-card-badge-name">${escapeHtml(cardName)}</span>
+    </div>
+  `;
+}
+
+/* ========================================================
    CARD ACTIONS MODAL
 ======================================================== */
 export function openCardModal(card) {
@@ -176,10 +195,25 @@ export function openCardModal(card) {
         propSelect.className = 'modal-select';
         actSection.appendChild(propSelect);
 
+        const propPreview = document.createElement('div');
+        propPreview.className = 'deal-prop-selection-preview';
+        actSection.appendChild(propPreview);
+
         const slyBtn = document.createElement('button');
         slyBtn.className = 'btn-action';
         slyBtn.textContent = '🕵️ Steal Property!';
         actSection.appendChild(slyBtn);
+
+        function updatePreview() {
+          const eligible = propSelect._eligible || [];
+          const chosen = eligible[parseInt(propSelect.value, 10)];
+          if (chosen) {
+            propPreview.innerHTML = renderDealPropertyBadge(chosen.color, chosen.card.name);
+          } else {
+            propPreview.innerHTML = '';
+          }
+        }
+        propSelect.addEventListener('change', updatePreview);
 
         function updateEligibleProps() {
           const targetOppId = oppSelect.value;
@@ -195,11 +229,13 @@ export function openCardModal(card) {
                   const isStandard = c.type === 'property';
                   const isDualWild = c.type === 'wild_property' && (c.colors || []).length === 2;
                   if (isStandard || isDualWild) {
+                    const colorName = COLOR_NAMES[color] || color;
                     eligibleProps.push({
                       card: c,
                       color,
+                      colorName,
                       setKey,
-                      name: `${c.name} (${COLOR_NAMES[color] || color})`
+                      name: `[${colorName}] ${c.name}`
                     });
                   }
                 });
@@ -214,6 +250,7 @@ export function openCardModal(card) {
             propSelect.appendChild(opt);
             propSelect.disabled = true;
             slyBtn.disabled = true;
+            propPreview.innerHTML = '';
           } else {
             propSelect.disabled = false;
             slyBtn.disabled = false;
@@ -223,6 +260,7 @@ export function openCardModal(card) {
               opt.textContent = p.name;
               propSelect.appendChild(opt);
             });
+            updatePreview();
           }
           propSelect._eligible = eligibleProps;
         }
@@ -247,7 +285,8 @@ export function openCardModal(card) {
         if (!isCompleteSet(cards, color)) {
           cards.forEach(c => {
             if (c.type === 'property' || c.type === 'wild_property') {
-              myProps.push({ card: c, color, setKey, name: `${c.name} (${COLOR_NAMES[color] || color})` });
+              const colorName = COLOR_NAMES[color] || color;
+              myProps.push({ card: c, color, colorName, setKey, name: `[${colorName}] ${c.name}` });
             }
           });
         }
@@ -280,6 +319,21 @@ export function openCardModal(card) {
         });
         actSection.appendChild(selMine);
 
+        const myPreview = document.createElement('div');
+        myPreview.className = 'deal-prop-selection-preview';
+        actSection.appendChild(myPreview);
+
+        function updateMyPreview() {
+          const m = myProps[parseInt(selMine.value, 10)];
+          if (m) {
+            myPreview.innerHTML = renderDealPropertyBadge(m.color, m.card.name);
+          } else {
+            myPreview.innerHTML = '';
+          }
+        }
+        selMine.addEventListener('change', updateMyPreview);
+        updateMyPreview();
+
         const oppLabel = document.createElement('label');
         oppLabel.textContent = '2. Select Target Opponent:';
         oppLabel.style.fontSize = '0.8rem';
@@ -308,10 +362,25 @@ export function openCardModal(card) {
         propSelect.className = 'modal-select';
         actSection.appendChild(propSelect);
 
+        const oppPropPreview = document.createElement('div');
+        oppPropPreview.className = 'deal-prop-selection-preview';
+        actSection.appendChild(oppPropPreview);
+
         const swapBtn = document.createElement('button');
         swapBtn.className = 'btn-action';
         swapBtn.textContent = '🔄 Swap Properties!';
         actSection.appendChild(swapBtn);
+
+        function updateOppPreview() {
+          const eligible = propSelect._eligible || [];
+          const o = eligible[parseInt(propSelect.value, 10)];
+          if (o) {
+            oppPropPreview.innerHTML = renderDealPropertyBadge(o.color, o.card.name);
+          } else {
+            oppPropPreview.innerHTML = '';
+          }
+        }
+        propSelect.addEventListener('change', updateOppPreview);
 
         function updateEligibleOpponentProps() {
           const targetOppId = oppSelect.value;
@@ -327,11 +396,13 @@ export function openCardModal(card) {
                   const isStandard = c.type === 'property';
                   const isDualWild = c.type === 'wild_property' && (c.colors || []).length === 2;
                   if (isStandard || isDualWild) {
+                    const colorName = COLOR_NAMES[color] || color;
                     eligibleProps.push({
                       card: c,
                       color,
+                      colorName,
                       setKey,
-                      name: `${c.name} (${COLOR_NAMES[color] || color})`
+                      name: `[${colorName}] ${c.name}`
                     });
                   }
                 });
@@ -346,6 +417,7 @@ export function openCardModal(card) {
             propSelect.appendChild(opt);
             propSelect.disabled = true;
             swapBtn.disabled = true;
+            oppPropPreview.innerHTML = '';
           } else {
             propSelect.disabled = false;
             swapBtn.disabled = false;
@@ -355,6 +427,7 @@ export function openCardModal(card) {
               opt.textContent = p.name;
               propSelect.appendChild(opt);
             });
+            updateOppPreview();
           }
           propSelect._eligible = eligibleProps;
         }
@@ -909,6 +982,83 @@ export function closePaymentModal() {
   state.actionPromptError = null;
 }
 
+function getSlyDealDetails(pendingAction) {
+  const params = pendingAction.params || {};
+  let cardName = params.card_name || '';
+  let color = params.found_color || '';
+  let colorName = params.found_color_name || (color ? COLOR_NAMES[color] : '');
+
+  if (!color && pendingAction.target_id && state.currentGameState?.players) {
+    const target = state.currentGameState.players[pendingAction.target_id];
+    if (target?.property_sets) {
+      for (const [setKey, cards] of Object.entries(target.property_sets)) {
+        const found = (cards || []).find(c => c.id === params.card_id);
+        if (found) {
+          color = getSetColor(setKey, cards);
+          cardName = cardName || found.name;
+          colorName = COLOR_NAMES[color] || color;
+          break;
+        }
+      }
+    }
+  }
+
+  return {
+    cardName: cardName || 'Property Card',
+    color: color || 'utility',
+    colorName: colorName || COLOR_NAMES[color] || 'Property',
+  };
+}
+
+function getForcedDealDetails(pendingAction) {
+  const params = pendingAction.params || {};
+  let myCardName = params.my_card_name || '';
+  let myColor = params.my_color || '';
+  let myColorName = params.my_color_name || (myColor ? COLOR_NAMES[myColor] : '');
+
+  let targetCardName = params.target_card_name || '';
+  let targetColor = params.target_color || '';
+  let targetColorName = params.target_color_name || (targetColor ? COLOR_NAMES[targetColor] : '');
+
+  if ((!myColor || !targetColor) && state.currentGameState?.players) {
+    const initiator = state.currentGameState.players[pendingAction.initiator_id];
+    const target = state.currentGameState.players[pendingAction.target_id];
+
+    if (!myColor && initiator?.property_sets) {
+      for (const [setKey, cards] of Object.entries(initiator.property_sets)) {
+        const found = (cards || []).find(c => c.id === params.my_card_id);
+        if (found) {
+          myColor = getSetColor(setKey, cards);
+          myCardName = myCardName || found.name;
+          myColorName = COLOR_NAMES[myColor] || myColor;
+          break;
+        }
+      }
+    }
+
+    if (!targetColor && target?.property_sets) {
+      for (const [setKey, cards] of Object.entries(target.property_sets)) {
+        const found = (cards || []).find(c => c.id === params.target_card_id);
+        if (found) {
+          targetColor = getSetColor(setKey, cards);
+          targetCardName = targetCardName || found.name;
+          targetColorName = COLOR_NAMES[targetColor] || targetColor;
+          break;
+        }
+      }
+    }
+  }
+
+  return {
+    myCardName: myCardName || 'Offered Property',
+    myColor: myColor || 'utility',
+    myColorName: myColorName || COLOR_NAMES[myColor] || 'Property',
+    targetCardName: targetCardName || 'Target Property',
+    targetColor: targetColor || 'utility',
+    targetColorName: targetColorName || COLOR_NAMES[targetColor] || 'Property',
+  };
+}
+
 /* ========================================================
    PENDING ACTION MODAL (SLY DEAL, FORCED DEAL, DEAL BREAKER & COUNTERS)
 ======================================================== */
@@ -980,6 +1130,57 @@ export function renderPendingActionModal(pendingAction, myPlayer) {
     sayNoBtnSub = 'Play another Just Say No to re-block this action';
   }
 
+  let actionDetailsHtml = '';
+  if (pendingAction.action === 'sly_deal') {
+    const details = getSlyDealDetails(pendingAction);
+    actionDetailsHtml = `
+      <div class="deal-swap-details-box">
+        <div class="deal-swap-title">🕵️ Target Property (To Steal)</div>
+        <div class="deal-swap-item">
+          ${renderDealPropertyBadge(details.color, details.cardName)}
+        </div>
+      </div>
+    `;
+  } else if (pendingAction.action === 'forced_deal') {
+    const details = getForcedDealDetails(pendingAction);
+    const leftRole = isInitiator ? 'You Offer' : 'You Surrender';
+    const rightRole = isInitiator ? 'You Receive' : 'You Receive';
+    const leftBadge = isInitiator
+      ? renderDealPropertyBadge(details.myColor, details.myCardName)
+      : renderDealPropertyBadge(details.targetColor, details.targetCardName);
+    const rightBadge = isInitiator
+      ? renderDealPropertyBadge(details.targetColor, details.targetCardName)
+      : renderDealPropertyBadge(details.myColor, details.myCardName);
+
+    actionDetailsHtml = `
+      <div class="deal-swap-details-box">
+        <div class="deal-swap-title">🔄 Property Swap Details</div>
+        <div class="deal-swap-grid">
+          <div class="deal-swap-item">
+            <div class="deal-swap-role">${leftRole}</div>
+            ${leftBadge}
+          </div>
+          <div class="deal-swap-arrow">⇄</div>
+          <div class="deal-swap-item">
+            <div class="deal-swap-role">${rightRole}</div>
+            ${rightBadge}
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (pendingAction.action === 'deal_breaker') {
+    const color = pendingAction.params?.color || 'utility';
+    const colorName = pendingAction.params?.color_name || COLOR_NAMES[color] || color;
+    actionDetailsHtml = `
+      <div class="deal-swap-details-box">
+        <div class="deal-swap-title">🚨 Full Completed Set (To Steal)</div>
+        <div class="deal-swap-item">
+          ${renderDealPropertyBadge(color, `${colorName} Full Set`)}
+        </div>
+      </div>
+    `;
+  }
+
   if (title) title.textContent = modalTitle;
 
   body.innerHTML = `
@@ -990,6 +1191,7 @@ export function renderPendingActionModal(pendingAction, myPlayer) {
       </div>
       <div class="payment-alert-desc">
         ${alertDesc}
+        ${actionDetailsHtml}
       </div>
     </div>
 

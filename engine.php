@@ -589,6 +589,8 @@ class GameEngine {
                         ? ($params['color'] ?? $stolenCard['current_color'] ?? $stolenCard['colors'][0])
                         : $foundCol;
 
+                    $colorName = CardDefinitions::SET_RULES[$foundCol]['name'] ?? ucfirst(str_replace('_', ' ', $foundCol ?? ''));
+
                     $state['pending_action'] = [
                         'action' => 'sly_deal',
                         'action_card' => $card,
@@ -600,16 +602,18 @@ class GameEngine {
                             'card_id' => $stolenCardId,
                             'dest_color' => $destCol,
                             'found_color' => $foundCol,
+                            'found_color_name' => $colorName,
                             'found_set_key' => $foundSetKey,
                             'card_name' => $stolenCard['name'],
+                            'stolen_card' => $stolenCard,
                         ],
-                        'reason' => "Sly Deal (stealing {$stolenCard['name']})",
+                        'reason' => "Sly Deal (stealing {$stolenCard['name']} [{$colorName}])",
                         'current_respondent_id' => $targetId,
                         'current_respondent_name' => $target['name'],
                         'jsn_count' => 0,
                         'jsn_chain' => [],
                     ];
-                    self::addLog($state, "🕵️ {$player['name']} played Sly Deal on {$target['name']} targeting {$stolenCard['name']}!");
+                    self::addLog($state, "🕵️ {$player['name']} played Sly Deal on {$target['name']} targeting {$stolenCard['name']} ({$colorName})!");
                     return;
 
                 case 'forced_deal':
@@ -668,6 +672,9 @@ class GameEngine {
                     $pDestCol = $targetCard['type'] === 'wild_property' ? ($params['my_dest_color'] ?? $targetCard['current_color'] ?? $targetCol) : $targetCol;
                     $tDestCol = $myCard['type'] === 'wild_property' ? ($myCard['current_color'] ?? $myCol) : $myCol;
 
+                    $myColorName = CardDefinitions::SET_RULES[$myCol]['name'] ?? ucfirst(str_replace('_', ' ', $myCol ?? ''));
+                    $targetColorName = CardDefinitions::SET_RULES[$targetCol]['name'] ?? ucfirst(str_replace('_', ' ', $targetCol ?? ''));
+
                     $state['pending_action'] = [
                         'action' => 'forced_deal',
                         'action_card' => $card,
@@ -680,18 +687,24 @@ class GameEngine {
                             'target_card_id' => $targetCardId,
                             'my_set_key' => $mySetKey,
                             'target_set_key' => $targetSetKey,
+                            'my_color' => $myCol,
+                            'my_color_name' => $myColorName,
+                            'target_color' => $targetCol,
+                            'target_color_name' => $targetColorName,
                             'p_dest_color' => $pDestCol,
                             't_dest_color' => $tDestCol,
                             'my_card_name' => $myCard['name'],
                             'target_card_name' => $targetCard['name'],
+                            'my_card' => $myCard,
+                            'target_card' => $targetCard,
                         ],
-                        'reason' => "Forced Deal (swapping {$myCard['name']} for {$targetCard['name']})",
+                        'reason' => "Forced Deal (swapping {$myCard['name']} [{$myColorName}] for {$targetCard['name']} [{$targetColorName}])",
                         'current_respondent_id' => $targetId,
                         'current_respondent_name' => $target['name'],
                         'jsn_count' => 0,
                         'jsn_chain' => [],
                     ];
-                    self::addLog($state, "🔄 {$player['name']} played Forced Deal on {$target['name']}, offering {$myCard['name']} for {$targetCard['name']}!");
+                    self::addLog($state, "🔄 {$player['name']} played Forced Deal on {$target['name']}, offering {$myCard['name']} ({$myColorName}) for {$targetCard['name']} ({$targetColorName})!");
                     return;
 
                 case 'just_say_no':
@@ -1310,7 +1323,8 @@ class GameEngine {
                     self::addPropertyCardToPlayer($initiator, $stolenCard, $destCol, $state);
                     self::reorganizePlayerProperties($initiator, $state);
 
-                    self::addLog($state, "🕵️ {$initiator['name']} successfully stole {$stolenCard['name']} from {$target['name']} with Sly Deal!");
+                    $stolenColorName = CardDefinitions::SET_RULES[$foundCol]['name'] ?? ($params['found_color_name'] ?? ucfirst(str_replace('_', ' ', $foundCol ?? '')));
+                    self::addLog($state, "🕵️ {$initiator['name']} successfully stole {$stolenCard['name']} ({$stolenColorName}) from {$target['name']} with Sly Deal!");
                 }
                 break;
 
@@ -1341,6 +1355,9 @@ class GameEngine {
                 }
 
                 if ($myCard && $targetCard) {
+                    $myColorName = $params['my_color_name'] ?? (CardDefinitions::SET_RULES[$tDestCol]['name'] ?? ucfirst(str_replace('_', ' ', $tDestCol ?? '')));
+                    $targetColorName = $params['target_color_name'] ?? (CardDefinitions::SET_RULES[$pDestCol]['name'] ?? ucfirst(str_replace('_', ' ', $pDestCol ?? '')));
+
                     array_splice($initiator['property_sets'][$mySetKey], $myIdx, 1);
                     if (empty($initiator['property_sets'][$mySetKey])) unset($initiator['property_sets'][$mySetKey]);
 
@@ -1353,7 +1370,7 @@ class GameEngine {
                     self::reorganizePlayerProperties($initiator, $state);
                     self::reorganizePlayerProperties($target, $state);
 
-                    self::addLog($state, "🔄 {$initiator['name']} completed Forced Deal with {$target['name']}, swapping {$myCard['name']} for {$targetCard['name']}!");
+                    self::addLog($state, "🔄 {$initiator['name']} completed Forced Deal with {$target['name']}, swapping {$myCard['name']} ({$myColorName}) for {$targetCard['name']} ({$targetColorName})!");
                 }
                 break;
         }
