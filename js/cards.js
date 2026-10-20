@@ -60,6 +60,37 @@ export function calculatePlayerTableValue(player) {
   return total;
 }
 
+export function getBestPropertySetCount(player, color) {
+  let maxCount = 0;
+  const baseCol = String(color || '').split('#')[0];
+  Object.entries(player?.property_sets || {}).forEach(([setKey, cards]) => {
+    if (getSetColor(setKey, cards) === baseCol) {
+      const cnt = getSetPropertiesCount(cards);
+      if (cnt > maxCount) maxCount = cnt;
+    }
+  });
+  return maxCount;
+}
+
+export function getBestPropertySetRent(player, color) {
+  let maxRent = 0;
+  const baseCol = String(color || '').split('#')[0];
+  const rule = SET_RULES[baseCol];
+  if (!rule) return 0;
+  Object.entries(player?.property_sets || {}).forEach(([setKey, cards]) => {
+    if (getSetColor(setKey, cards) === baseCol) {
+      const pCount = getSetPropertiesCount(cards);
+      if (pCount > 0) {
+        const hasHouse = setHasHouse(cards);
+        const hasHotel = setHasHotel(cards);
+        const rent = getPropertySetValue(baseCol, pCount, hasHouse, hasHotel);
+        if (rent > maxRent) maxRent = rent;
+      }
+    }
+  });
+  return maxRent;
+}
+
 // --- Visual Artwork Helpers ---
 export function getCardArtHtml(card) {
   if (card.type === 'action' && card.action) {

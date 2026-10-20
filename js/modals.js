@@ -14,7 +14,9 @@ import {
   calculatePlayerTableValue,
   getSwapIconSvg,
   getSetColor,
-  getSetPropertiesCount
+  getSetPropertiesCount,
+  getBestPropertySetCount,
+  getBestPropertySetRent
 } from './cards.js';
 import { render } from './render.js';
 import { clearSession } from './game.js';
@@ -565,43 +567,63 @@ export function openCardModal(card) {
       });
       actSection.appendChild(bdayBtn);
     } else if (card.type === 'rent') {
-function getBestPropertySetCount(player, color) {
-  let maxCount = 0;
-  Object.entries(player?.property_sets || {}).forEach(([setKey, cards]) => {
-    if (getSetColor(setKey, cards) === color) {
-      const cnt = getSetPropertiesCount(cards);
-      if (cnt > maxCount) maxCount = cnt;
-    }
-  });
-  return maxCount;
-}
-
       const c1 = card.colors[0];
       const c2 = card.colors[1];
       const count1 = getBestPropertySetCount(myPlayer, c1);
       const count2 = getBestPropertySetCount(myPlayer, c2);
+      const rent1 = getBestPropertySetRent(myPlayer, c1);
+      const rent2 = getBestPropertySetRent(myPlayer, c2);
 
-      const select = document.createElement('select');
-      select.className = 'modal-select';
+      const hasAny = count1 > 0 || count2 > 0;
+      if (!hasAny) {
+        const hint = document.createElement('div');
+        hint.className = 'empty-state-text';
+        hint.style.fontSize = '0.82rem';
+        hint.style.lineHeight = '1.35';
+        hint.textContent = `⚠️ You do not own any ${COLOR_NAMES[c1] || c1} or ${COLOR_NAMES[c2] || c2} properties to charge rent for. (You can still deposit this card into your bank for $${card.value}M above).`;
+        actSection.appendChild(hint);
+      } else {
+        const select = document.createElement('select');
+        select.className = 'modal-select';
 
-      const opt1 = document.createElement('option');
-      opt1.value = c1;
-      opt1.textContent = `Charge for ${COLOR_NAMES[c1]} (You own ${count1})`;
-      select.appendChild(opt1);
+        const opt1 = document.createElement('option');
+        opt1.value = c1;
+        if (count1 > 0) {
+          opt1.textContent = `Charge for ${COLOR_NAMES[c1] || c1} (${count1} owned • $${rent1}M rent)`;
+        } else {
+          opt1.textContent = `${COLOR_NAMES[c1] || c1} (0 owned - cannot charge)`;
+          opt1.disabled = true;
+        }
+        select.appendChild(opt1);
 
-      const opt2 = document.createElement('option');
-      opt2.value = c2;
-      opt2.textContent = `Charge for ${COLOR_NAMES[c2]} (You own ${count2})`;
-      select.appendChild(opt2);
-      actSection.appendChild(select);
+        const opt2 = document.createElement('option');
+        opt2.value = c2;
+        if (count2 > 0) {
+          opt2.textContent = `Charge for ${COLOR_NAMES[c2] || c2} (${count2} owned • $${rent2}M rent)`;
+        } else {
+          opt2.textContent = `${COLOR_NAMES[c2] || c2} (0 owned - cannot charge)`;
+          opt2.disabled = true;
+        }
+        select.appendChild(opt2);
 
-      const rentBtn = document.createElement('button');
-      rentBtn.className = 'btn-action';
-      rentBtn.textContent = '💰 Charge Rent to All Opponents';
-      rentBtn.addEventListener('click', () => {
-        executePlay(card.id, 'action', { color: select.value });
-      });
-      actSection.appendChild(rentBtn);
+        if (count1 === 0 && count2 > 0) {
+          select.value = c2;
+        } else {
+          select.value = c1;
+        }
+        actSection.appendChild(select);
+
+        const rentMult = Math.min(2, Math.max(1, state.currentGameState?.turn?.rent_multiplier || 1));
+        const multBadge = rentMult > 1 ? ' (2x Double Rent Active!)' : '';
+
+        const rentBtn = document.createElement('button');
+        rentBtn.className = 'btn-action';
+        rentBtn.textContent = `💰 Charge Rent to All Opponents${multBadge}`;
+        rentBtn.addEventListener('click', () => {
+          executePlay(card.id, 'action', { color: select.value });
+        });
+        actSection.appendChild(rentBtn);
+      }
     } else if (card.type === 'rent_wild') {
       if (opponents.length === 0) {
         const hint = document.createElement('div');
@@ -609,47 +631,68 @@ function getBestPropertySetCount(player, color) {
         hint.textContent = 'No opponents to target.';
         actSection.appendChild(hint);
       } else {
-        const l1 = document.createElement('label');
-        l1.textContent = 'Target Opponent:';
-        l1.style.fontSize = '0.8rem';
-        actSection.appendChild(l1);
+        const ownedColors = Object.keys(SET_RULES).filter(col => getBestPropertySetCount(myPlayer, col) > 0);
 
-        const selPlayer = document.createElement('select');
-        selPlayer.className = 'modal-select';
-        opponents.forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.id;
-          opt.textContent = p.name;
-          selPlayer.appendChild(opt);
-        });
-        actSection.appendChild(selPlayer);
+        if (ownedColors.length === 0) {
+          const hint = document.createElement('div');
+          hint.className = 'empty-state-text';
+          hint.style.fontSize = '0.82rem';
+          hint.style.lineHeight = '1.35';
+          hint.textContent = `⚠️ You do not own any properties laid down yet to charge rent for. (You can still deposit this card into your bank for $${card.value}M above).`;
+          actSection.appendChild(hint);
+        } else {
+          const l1 = document.createElement('label');
+          l1.textContent = 'Target Opponent:';
+          l1.style.fontSize = '0.8rem';
+          actSection.appendChild(l1);
 
-        const l2 = document.createElement('label');
-        l2.textContent = 'Property color to charge for:';
-        l2.style.fontSize = '0.8rem';
-        actSection.appendChild(l2);
-
-        const selColor = document.createElement('select');
-        selColor.className = 'modal-select';
-        Object.keys(SET_RULES).forEach(col => {
-          const count = getBestPropertySetCount(myPlayer, col);
-          const opt = document.createElement('option');
-          opt.value = col;
-          opt.textContent = `${COLOR_NAMES[col]} (You own ${count})`;
-          selColor.appendChild(opt);
-        });
-        actSection.appendChild(selColor);
-
-        const wildRentBtn = document.createElement('button');
-        wildRentBtn.className = 'btn-action';
-        wildRentBtn.textContent = '💰 Charge Single Player Rent';
-        wildRentBtn.addEventListener('click', () => {
-          executePlay(card.id, 'action', {
-            target_player_id: selPlayer.value,
-            color: selColor.value
+          const selPlayer = document.createElement('select');
+          selPlayer.className = 'modal-select';
+          opponents.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            selPlayer.appendChild(opt);
           });
-        });
-        actSection.appendChild(wildRentBtn);
+          actSection.appendChild(selPlayer);
+
+          const l2 = document.createElement('label');
+          l2.textContent = 'Property color to charge for:';
+          l2.style.fontSize = '0.8rem';
+          actSection.appendChild(l2);
+
+          const selColor = document.createElement('select');
+          selColor.className = 'modal-select';
+          Object.keys(SET_RULES).forEach(col => {
+            const count = getBestPropertySetCount(myPlayer, col);
+            const baseRent = getBestPropertySetRent(myPlayer, col);
+            const opt = document.createElement('option');
+            opt.value = col;
+            if (count > 0) {
+              opt.textContent = `${COLOR_NAMES[col] || col} (${count} owned • $${baseRent}M rent)`;
+            } else {
+              opt.textContent = `${COLOR_NAMES[col] || col} (0 owned - cannot charge)`;
+              opt.disabled = true;
+            }
+            selColor.appendChild(opt);
+          });
+          selColor.value = ownedColors[0];
+          actSection.appendChild(selColor);
+
+          const rentMult = Math.min(2, Math.max(1, state.currentGameState?.turn?.rent_multiplier || 1));
+          const multBadge = rentMult > 1 ? ' (2x Double Rent Active!)' : '';
+
+          const wildRentBtn = document.createElement('button');
+          wildRentBtn.className = 'btn-action';
+          wildRentBtn.textContent = `💰 Charge Single Player Rent${multBadge}`;
+          wildRentBtn.addEventListener('click', () => {
+            executePlay(card.id, 'action', {
+              target_player_id: selPlayer.value,
+              color: selColor.value
+            });
+          });
+          actSection.appendChild(wildRentBtn);
+        }
       }
     } else if (card.action === 'just_say_no') {
       const hint = document.createElement('div');
