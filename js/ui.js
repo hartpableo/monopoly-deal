@@ -8,25 +8,45 @@ export function showToast(title, message, icon = 'ℹ️', type = 'info') {
 
   const toast = document.createElement('div');
   toast.className = `toast-item toast-${type}`;
+  toast.setAttribute('role', 'status');
   toast.innerHTML = `
     <div class="toast-icon">${icon}</div>
     <div class="toast-content">
       <div class="toast-title">${escapeHtml(title)}</div>
       ${message ? `<div class="toast-desc">${escapeHtml(message)}</div>` : ''}
     </div>
+    <button type="button" class="toast-close-btn" aria-label="Close notification" title="Close">✕</button>
   `;
 
-  toast.addEventListener('click', () => {
+  let autoDismissTimer = null;
+
+  const dismissToast = (e) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (toast.classList.contains('toast-fadeout')) return;
+    if (autoDismissTimer) {
+      clearTimeout(autoDismissTimer);
+      autoDismissTimer = null;
+    }
     toast.classList.add('toast-fadeout');
-    setTimeout(() => toast.remove(), 250);
-  });
+    setTimeout(() => {
+      toast.remove();
+    }, 250);
+  };
+
+  const closeBtn = toast.querySelector('.toast-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', dismissToast);
+  }
+
+  toast.addEventListener('click', dismissToast);
 
   container.appendChild(toast);
 
-  setTimeout(() => {
+  autoDismissTimer = setTimeout(() => {
     if (toast.parentNode) {
-      toast.classList.add('toast-fadeout');
-      setTimeout(() => toast.remove(), 250);
+      dismissToast();
     }
   }, 4500);
 
