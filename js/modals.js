@@ -1150,7 +1150,8 @@ export function renderPendingActionModal(pendingAction, myPlayer) {
     state.actionPromptError = null;
   }
 
-  const actionSignature = `action_${stepKey}_${pendingAction.initiator_id}_${pendingAction.current_respondent_id}_${state.actionPromptError || ''}_${state.isSubmittingPayment}`;
+  const hasJustSayNo = (myPlayer.hand || []).some(c => c.action === 'just_say_no');
+  const actionSignature = `action_${stepKey}_${pendingAction.initiator_id}_${pendingAction.current_respondent_id}_${hasJustSayNo}_${state.actionPromptError || ''}_${state.isSubmittingPayment}`;
   const isCurrentlyOpen = !modal.classList.contains('hidden');
   if (isCurrentlyOpen && state.lastRenderedPendingActionSignature === actionSignature) {
     return;
@@ -1162,7 +1163,6 @@ export function renderPendingActionModal(pendingAction, myPlayer) {
   state.lastRenderedPaymentSignature = null;
   state.lastRenderedPaymentStep = null;
 
-  const hasJustSayNo = (myPlayer.hand || []).some(c => c.action === 'just_say_no');
   const isInitiator = (myPlayer.id === pendingAction.initiator_id);
   const isCounter = (pendingAction.jsn_count > 0);
 
@@ -1298,11 +1298,11 @@ export function renderPendingActionModal(pendingAction, myPlayer) {
           </div>
         </button>
 
-        <button id="btn-action-say-no" class="btn-say-no btn-prompt-choice" ${state.isSubmittingPayment ? 'disabled' : ''}>
+        <button id="btn-action-say-no" class="btn-say-no btn-prompt-choice ${!hasJustSayNo ? 'is-muted' : ''}" ${(!hasJustSayNo || state.isSubmittingPayment) ? 'disabled' : ''} ${!hasJustSayNo ? 'title="No Just Say No card in hand"' : ''}>
           <span class="btn-prompt-icon">🛑</span>
           <div class="btn-prompt-text">
             <span class="btn-prompt-title">${escapeHtml(sayNoBtnTitle)}</span>
-            <span class="btn-prompt-subtitle">${escapeHtml(sayNoBtnSub)}</span>
+            <span class="btn-prompt-subtitle">${escapeHtml(hasJustSayNo ? sayNoBtnSub : 'No "Just Say No" card in hand')}</span>
           </div>
         </button>
       </div>
@@ -1338,12 +1338,7 @@ export function renderPendingActionModal(pendingAction, myPlayer) {
   const sayNoBtn = document.getElementById('btn-action-say-no');
   if (sayNoBtn) {
     sayNoBtn.addEventListener('click', async () => {
-      if (state.isSubmittingPayment) return;
-      if (!hasJustSayNo) {
-        state.actionPromptError = 'You do not have a "Just Say No" card in your hand!';
-        renderPendingActionModal(pendingAction, myPlayer);
-        return;
-      }
+      if (state.isSubmittingPayment || !hasJustSayNo) return;
       const confirmMsg = isCounter
         ? 'Counter with Just Say No?'
         : `Play Just Say No to cancel ${pendingAction.initiator_name}'s ${pendingAction.action_card.name}?`;
@@ -1407,7 +1402,7 @@ export function renderPaymentModal(pending, myPlayer) {
 
   // SUB-FLOW: Collector challenged by payer's Just Say No
   if (isCollector && challengedPayer) {
-    const collectorSignature = `collector_${challengedPayer.id}_${challengedPayer.jsn_count}_${state.paymentPromptError || ''}_${state.isSubmittingPayment}`;
+    const collectorSignature = `collector_${challengedPayer.id}_${challengedPayer.jsn_count}_${hasJustSayNo}_${state.paymentPromptError || ''}_${state.isSubmittingPayment}`;
     if (isCurrentlyOpen && state.lastRenderedPaymentSignature === collectorSignature) {
       return;
     }
@@ -1449,11 +1444,11 @@ export function renderPaymentModal(pending, myPlayer) {
             </div>
           </button>
 
-          <button id="btn-collector-counter-say-no" class="btn-say-no btn-prompt-choice" ${state.isSubmittingPayment ? 'disabled' : ''}>
+          <button id="btn-collector-counter-say-no" class="btn-say-no btn-prompt-choice ${!hasJustSayNo ? 'is-muted' : ''}" ${(!hasJustSayNo || state.isSubmittingPayment) ? 'disabled' : ''} ${!hasJustSayNo ? 'title="No Just Say No card in hand"' : ''}>
             <span class="btn-prompt-icon">🛑</span>
             <div class="btn-prompt-text">
               <span class="btn-prompt-title">Counter with "Just Say No"</span>
-              <span class="btn-prompt-subtitle">Cancel their block and force payment</span>
+              <span class="btn-prompt-subtitle">${escapeHtml(hasJustSayNo ? 'Cancel their block and force payment' : 'No "Just Say No" card in hand')}</span>
             </div>
           </button>
         </div>
@@ -1486,12 +1481,7 @@ export function renderPaymentModal(pending, myPlayer) {
     const counterBtn = document.getElementById('btn-collector-counter-say-no');
     if (counterBtn) {
       counterBtn.addEventListener('click', async () => {
-        if (state.isSubmittingPayment) return;
-        if (!hasJustSayNo) {
-          state.paymentPromptError = 'You do not have a "Just Say No" card in your hand!';
-          renderPaymentModal(pending, myPlayer);
-          return;
-        }
+        if (state.isSubmittingPayment || !hasJustSayNo) return;
         if (!confirm(`Counter ${challengedPayer.name}'s Just Say No with your own Just Say No?`)) return;
         state.isSubmittingPayment = true;
         counterBtn.disabled = true;
@@ -1586,11 +1576,11 @@ export function renderPaymentModal(pending, myPlayer) {
             </div>
           </button>
 
-          <button id="btn-prompt-say-no" class="btn-say-no btn-prompt-choice" ${state.isSubmittingPayment ? 'disabled' : ''}>
+          <button id="btn-prompt-say-no" class="btn-say-no btn-prompt-choice ${!hasJustSayNo ? 'is-muted' : ''}" ${(!hasJustSayNo || state.isSubmittingPayment) ? 'disabled' : ''} ${!hasJustSayNo ? 'title="No Just Say No card in hand"' : ''}>
             <span class="btn-prompt-icon">🛑</span>
             <div class="btn-prompt-text">
               <span class="btn-prompt-title">${escapeHtml(sayNoBtnTitle)}</span>
-              <span class="btn-prompt-subtitle">${escapeHtml(sayNoBtnSub)}</span>
+              <span class="btn-prompt-subtitle">${escapeHtml(hasJustSayNo ? sayNoBtnSub : 'No "Just Say No" card in hand')}</span>
             </div>
           </button>
         </div>
@@ -1609,12 +1599,7 @@ export function renderPaymentModal(pending, myPlayer) {
     const promptSayNoBtn = document.getElementById('btn-prompt-say-no');
     if (promptSayNoBtn) {
       promptSayNoBtn.addEventListener('click', async () => {
-        if (state.isSubmittingPayment) return;
-        if (!hasJustSayNo) {
-          state.paymentPromptError = 'You do not have a "Just Say No" card in your hand! Please proceed with payment.';
-          renderPaymentModal(pending, myPlayer);
-          return;
-        }
+        if (state.isSubmittingPayment || !hasJustSayNo) return;
         const confirmMsg = isPayerCountered ? 'Counter with Just Say No?' : `Play Just Say No to cancel the payment demanded by ${pending.collector_name}?`;
         if (!confirm(confirmMsg)) return;
         state.isSubmittingPayment = true;
@@ -1684,7 +1669,7 @@ export function renderPaymentModal(pending, myPlayer) {
     existingIds.forEach(id => state.selectedPaymentCardIds.add(id));
   }
 
-  const paySignature = `pay_${paymentKey}_${amountDue}_${totalTableValue}_${bankCards.map(c => `${c.id}:${c.value}`).join(';')}_${propertyCards.map(p => `${p.card.id}:${p.card.value}`).join(';')}_${state.isSubmittingPayment}`;
+  const paySignature = `pay_${paymentKey}_${amountDue}_${totalTableValue}_${hasJustSayNo}_${bankCards.map(c => `${c.id}:${c.value}`).join(';')}_${propertyCards.map(p => `${p.card.id}:${p.card.value}`).join(';')}_${state.isSubmittingPayment}`;
   if (isCurrentlyOpen && state.lastRenderedPaymentSignature === paySignature) {
     return;
   }
@@ -1807,8 +1792,8 @@ export function renderPaymentModal(pending, myPlayer) {
     ` : ''}
 
     <div class="payment-btn-group">
-      <button id="btn-payment-say-no" class="btn-say-no" ${state.isSubmittingPayment ? 'disabled' : ''}>
-        🛑 Just Say No! (Cancel Debt)
+      <button id="btn-payment-say-no" class="btn-say-no ${!hasJustSayNo ? 'is-muted' : ''}" ${(!hasJustSayNo || state.isSubmittingPayment) ? 'disabled' : ''} ${!hasJustSayNo ? 'title="No Just Say No card in hand"' : ''}>
+        🛑 ${hasJustSayNo ? 'Just Say No! (Cancel Debt)' : 'Just Say No (No Card in Hand)'}
       </button>
       <button id="btn-payment-submit" class="btn-primary" ${(!isValid || state.isSubmittingPayment) ? 'disabled' : ''}>
         ${state.isSubmittingPayment ? 'Processing...' : payBtnText}
@@ -1926,11 +1911,7 @@ export function renderPaymentModal(pending, myPlayer) {
   const sayNoBtn = document.getElementById('btn-payment-say-no');
   if (sayNoBtn) {
     sayNoBtn.addEventListener('click', async () => {
-      if (state.isSubmittingPayment) return;
-      if (!hasJustSayNo) {
-        alert('You do not have a "Just Say No" card in your hand!');
-        return;
-      }
+      if (state.isSubmittingPayment || !hasJustSayNo) return;
       if (!confirm(`Play Just Say No to cancel the payment to ${pending.collector_name}?`)) return;
       state.isSubmittingPayment = true;
       sayNoBtn.disabled = true;

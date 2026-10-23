@@ -12,3 +12,4 @@
 - when a player runs out of cards, he will get 5 cards instead of just 2 in his next turn
 - when a property set is full and a property card of the same color has been added to a player's deck, consider this a new set. but when wildcards are moved around, re-evaluate if the separated same-category properties can be merged
 - when swapping cards via sly deal or forced deal, show the color not just names in the modal
+- mute just say no button if not applicable instead of still making it interactive
